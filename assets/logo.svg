@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 160" width="200" height="160">
+  <!-- Red flag background with wave -->
+  <defs>
+    <clipPath id="flag-clip">
+      <path d="M0,0 Q50,-8 100,0 Q150,8 200,0 L200,110 Q150,118 100,110 Q50,102 0,110 Z"/>
+    </clipPath>
+  </defs>
+
+  <!-- Red upper section -->
+  <path d="M0,0 Q50,-8 100,0 Q150,8 200,0 L200,78 Q150,70 100,78 Q50,86 0,78 Z" fill="#C8102E"/>
+  <!-- White wave separator -->
+  <path d="M0,75 Q50,67 100,75 Q150,83 200,75 L200,83 Q150,91 100,83 Q50,75 0,83 Z" fill="#FFFFFF"/>
+  <!-- Blue lower section -->
+  <path d="M0,80 Q50,72 100,80 Q150,88 200,80 L200,112 Q150,120 100,112 Q50,104 0,112 Z" fill="#003DA5"/>
+  <!-- Second white wave -->
+  <path d="M0,108 Q50,100 100,108 Q150,116 200,108 L200,116 Q150,124 100,116 Q50,108 0,116 Z" fill="#FFFFFF" opacity="0.6"/>
+
+  <!-- Vietnamese star (left) -->
+  <g transform="translate(42,34)">
+    <polygon points="0,-14 3.3,-4.5 13.3,-4.5 5.4,1.7 8.2,11.3 0,5.5 -8.2,11.3 -5.4,1.7 -13.3,-4.5 -3.3,-4.5" fill="#FFD700"/>
+  </g>
+
+  <!-- Soviet hammer & sickle (right) -->
+  <g transform="translate(156,30)" font-family="serif" font-size="22" fill="#FFD700">
+    <text x="-10" y="8" font-size="20">☭</text>
+  </g>
+  <!-- Small star above hammer sickle -->
+  <g transform="translate(159,14)">
+    <polygon points="0,-7 1.6,-2.2 6.6,-2.2 2.7,0.8 4.1,5.6 0,2.7 -4.1,5.6 -2.7,0.8 -6.6,-2.2 -1.6,-2.2" fill="#FFD700"/>
+  </g>
+
+  <!-- Oil derrick (center) -->
+  <g fill="#111111" stroke="#111111" stroke-width="1.2">
+    <!-- Main tower legs -->
+    <line x1="100" y1="10" x2="82" y2="95" stroke-width="2.5"/>
+    <line x1="100" y1="10" x2="118" y2="95" stroke-width="2.5"/>
+    <!-- Cross braces -->
+    <line x1="87" y1="35" x2="113" y2="35" stroke-width="1.8"/>
+    <line x1="85" y1="55" x2="115" y2="55" stroke-width="1.8"/>
+    <line x1="83" y1="75" x2="117" y2="75" stroke-width="1.8"/>
+    <!-- Diagonal cross braces -->
+    <line x1="87" y1="35" x2="113" y2="55"/>
+    <line x1="113" y1="35" x2="87" y2="55"/>
+    <line x1="85" y1="55" x2="115" y2="75"/>
+    <line x1="115" y1="55" x2="85" y2="75"/>
+    <!-- Top cap -->
+    <rect x="95" y="6" width="10" height="6" rx="1"/>
+    <!-- Base platform -->
+    <rect x="79" y="93" width="42" height="5" rx="1"/>
+  </g>
+
+  <!-- VIETSOVPETRO text -->
+  <text x="100" y="132" font-family="'Arial Black', 'Helvetica Neue', Arial, sans-serif" font-size="13.5" font-weight="900" fill="#1A1A1A" text-anchor="middle" letter-spacing="1.5">VIETSOVPETRO</text>
+</svg>
