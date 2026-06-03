@@ -39,7 +39,7 @@ var DB = (function() {
   //  Sau khi đặt URL này, mọi người dùng đều tự kết nối
   //  mà không cần nhập thủ công trong Quản trị hệ thống
   // ═══════════════════════════════════════════════════
-  var DEFAULT_URL = "https://script.google.com/macros/s/AKfycby3WJV4dpICMTXTy3_AvUNbd9lI4PawQ8ksOM7bK8B_ztGvv_-2lu32ywOMZtmjwwshLw/exec";
+  var DEFAULT_URL = "https://script.google.com/macros/s/AKfycbyfhtL8agyGDrQgw9N2hc5-zZJVcmY9Q4XG8gpdOvMoCRgmbFivCDYTgZZToAiI9tpB8Q/exec";
 
   var _url = "";
   var _currentUser = "";
