@@ -178,17 +178,17 @@
   </header>
 
   <main class="main">
-    <div class="page-title">🧯 PCCC & Chữa cháy và Cứu nạn cứu hộ</div>
+    <div class="page-title">🧯 Phòng cháy, chữa cháy & Cứu nạn, cứu hộ</div>
     <div class="page-desc" id="pageDesc"></div>
 
     <div class="tab-bar">
-      <button class="tab-btn active" onclick="switchTab('bctd')">🔔 Hệ thống báo cháy tự động</button>
+      <button class="tab-btn" onclick="switchTab('bctd')">🔔 Hệ thống báo cháy tự động</button>
       <button class="tab-btn" onclick="switchTab('phuongtien')">🚒 Phương tiện CC & CNCH</button>
-      <button class="tab-btn" onclick="switchTab('kehoach')" id="tabBtnKeHoach">🗓️ Kế hoạch liên quan <span id="khBadge" style="display:none;background:var(--accent);color:#fff;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:700;margin-left:4px"></span></button>
+      <button class="tab-btn active" onclick="switchTab('kehoach')" id="tabBtnKeHoach">🗓️ Kế hoạch liên quan <span id="khBadge" style="display:none;background:var(--accent);color:#fff;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:700;margin-left:4px"></span></button>
     </div>
 
     <!-- TAB 1: HỆ THỐNG BCTD -->
-    <div class="tab-pane active" id="tab-bctd">
+    <div class="tab-pane" id="tab-bctd">
 
       <!-- ADMIN: QUẢN LÝ THIẾT BỊ -->
       <div id="adminDeviceSection" style="display:none">
@@ -229,7 +229,6 @@
               <div class="month-filter" style="margin-bottom:0;padding:6px 12px;box-shadow:none;border:1.5px solid var(--border);border-radius:8px;">
                 <label>Lọc tháng:</label>
                 <select class="inp" id="filterLogMonth" style="width:80px;padding:4px 8px;font-size:12.5px;" onchange="renderErrorLog();updateLockUI()">
-                  <option value="">Tất cả</option>
                 </select>
                 <select class="inp" id="filterLogYear" style="width:90px;padding:4px 8px;font-size:12.5px;" onchange="renderErrorLog();updateLockUI()">
                 </select>
@@ -270,7 +269,7 @@
     </div>
 
     <!-- TAB 3: KẾ HOẠCH LIÊN QUAN -->
-    <div class="tab-pane" id="tab-kehoach">
+    <div class="tab-pane active" id="tab-kehoach">
       <div class="section-card">
         <div class="section-card-head">
           <div class="section-card-title">🗓️ Công việc Kế hoạch liên quan đến PCCC &amp; CNCH</div>
@@ -615,6 +614,7 @@ function switchTab(tab){
   document.getElementById('tab-phuongtien').classList.toggle('active',tab==='phuongtien');
   document.getElementById('tab-kehoach').classList.toggle('active',tab==='kehoach');
   if(tab==='kehoach') renderKeHoachLinks();
+  if(tab==='bctd'){ populateMonthFilter(); renderErrorLog(); updateLockUI(); }
 }
 
 /* ---- DATA ---- */
@@ -777,13 +777,14 @@ function renderErrorLog(){
 /* ---- POPULATE MONTH FILTER ---- */
 function populateMonthFilter(){
   var now=new Date();
+  var curMonth=now.getMonth()+1;
   var selM=document.getElementById("filterLogMonth");
   var selY=document.getElementById("filterLogYear");
-  var curM=selM.value, curY=selY.value;
-  selM.innerHTML='<option value="">Tất cả</option>'+
-    [1,2,3,4,5,6,7,8,9,10,11,12].map(function(m){
-      return '<option value="'+m+'"'+(String(m)===curM?' selected':'')+'>Tháng '+m+'</option>';
-    }).join("");
+  var curM=selM.value||String(curMonth), curY=selY.value;
+  // Bỏ option "Tất cả", mặc định chọn tháng hiện tại
+  selM.innerHTML=[1,2,3,4,5,6,7,8,9,10,11,12].map(function(m){
+    return '<option value="'+m+'"'+(String(m)===curM?' selected':'')+'>Tháng '+m+'</option>';
+  }).join("");
   var years=[];
   var errs=getErrors();
   errs.forEach(function(x){if(x.year&&years.indexOf(x.year)<0)years.push(x.year);});
