@@ -621,52 +621,27 @@ function switchTab(tab){
 function getDevices(){return load(K_DEVICES,[]);}
 function getErrors(){return load(K_ERRORS,[]);}
 
-var K_DEVICES_DIRTY = "hse_pccc_devices_dirty";
-var K_ERRORS_DIRTY  = "hse_pccc_errors_dirty";
+/* saveDevices / saveErrors: chỉ lưu localStorage, Sheets được xử lý riêng theo từng thao tác */
+function saveDevices(data){ save(K_DEVICES, data); }
+function saveErrors(data){ save(K_ERRORS, data); }
 
-function saveDevices(data){
-  save(K_DEVICES, data);
-  save(K_DEVICES_DIRTY, true);
-  if(typeof DB!=="undefined"&&DB.isReady()){
-    DB.bulkWrite("pccc_devices", data)
-      .then(function(){ save(K_DEVICES_DIRTY, false); showToast("☁️ Đã đồng bộ hệ thống lên Sheets","info"); })
-      .catch(function(e){ showToast("⚠️ Lưu local OK, chưa sync Sheets: "+(e&&e.message||""),"warning"); });
-  }
-}
-function saveErrors(data){
-  save(K_ERRORS, data);
-  save(K_ERRORS_DIRTY, true);
-  if(typeof DB!=="undefined"&&DB.isReady()){
-    DB.bulkWrite("pccc_errors", data)
-      .then(function(){ save(K_ERRORS_DIRTY, false); showToast("☁️ Đã đồng bộ nhật ký lên Sheets","info"); })
-      .catch(function(e){ showToast("⚠️ Lưu local OK, chưa sync Sheets: "+(e&&e.message||""),"warning"); });
-  }
+function _dbToast(ok, msg){
+  if(ok) showToast("☁️ "+msg+" đã lên Sheets","info");
+  else   showToast("⚠️ Lưu local OK, chưa sync Sheets: "+msg,"warning");
 }
 
 function safePullDevices(){
   if(!DB||!DB.isReady()) return;
-  var dirty=load(K_DEVICES_DIRTY,false);
-  if(dirty){
-    DB.bulkWrite("pccc_devices", getDevices())
-      .then(function(){ save(K_DEVICES_DIRTY,false); })
-      .catch(function(){});
-    return;
-  }
   DB.getAll("pccc_devices").then(function(r){
     if(r&&r.length){ save(K_DEVICES,r); renderDevices(); populateDeviceSelect(); }
   }).catch(function(){});
 }
 function safePullErrors(){
   if(!DB||!DB.isReady()) return;
-  var dirty=load(K_ERRORS_DIRTY,false);
-  if(dirty){
-    DB.bulkWrite("pccc_errors", getErrors())
-      .then(function(){ save(K_ERRORS_DIRTY,false); })
-      .catch(function(){});
-    return;
-  }
+  // Chỉ pull khi localStorage đang trống — tránh ghi đè dữ liệu mới hơn
+  if(getErrors().length>0) return;
   DB.getAll("pccc_errors").then(function(r){
-    if(r!==null&&r!==undefined){ save(K_ERRORS,r||[]); populateMonthFilter(); renderErrorLog(); }
+    if(r&&r.length){ save(K_ERRORS,r); populateMonthFilter(); renderErrorLog(); }
   }).catch(function(){});
 }
 
@@ -919,13 +894,21 @@ function saveDevice(){
   if(!name){showToast("⚠️ Vui lòng nhập tên hệ thống","warning");return;}
   if(!location){showToast("⚠️ Vui lòng nhập vị trí lắp đặt","warning");return;}
   var data=getDevices();
-  if(_editDeviceId){
+  var isNew=!_editDeviceId;
+  var item;
+  if(!isNew){
     var idx=data.findIndex(function(x){return x.id===_editDeviceId;});
-    if(idx>=0)data[idx]=Object.assign(data[idx],{name:name,location:location});
+    if(idx>=0){ data[idx]=Object.assign(data[idx],{name:name,location:location}); item=data[idx]; }
   } else {
-    data.push({id:uid(),name:name,location:location,createdAt:new Date().toISOString()});
+    item={id:uid(),name:name,location:location,createdAt:new Date().toISOString()};
+    data.push(item);
   }
   saveDevices(data);
+  // Sheets: insert hoặc update từng record, không bulkWrite
+  if(typeof DB!=="undefined"&&DB.isReady()&&item){
+    var op=isNew ? DB.insert("pccc_devices",item) : DB.update("pccc_devices",item.id,{name:name,location:location});
+    op.then(function(){ _dbToast(true,"Hệ thống"); }).catch(function(e){ _dbToast(false,e&&e.message||""); });
+  }
   closeDeviceModal();
   renderDevices();
   populateDeviceSelect();
@@ -934,6 +917,10 @@ function saveDevice(){
 function deleteDevice(id){
   if(!confirm("Xóa hệ thống này? Các bản ghi báo lỗi liên quan vẫn được giữ lại."))return;
   saveDevices(getDevices().filter(function(x){return x.id!==id;}));
+  // Sheets: xóa đúng record theo id
+  if(typeof DB!=="undefined"&&DB.isReady()){
+    DB.delete("pccc_devices",id).catch(function(){});
+  }
   renderDevices();
   populateDeviceSelect();
   showToast("🗑️ Đã xóa thiết bị","danger");
@@ -1064,12 +1051,18 @@ function saveError(){
     createdBy:u?(u.fullname||u.username):"Khách",
     createdAt:new Date().toISOString()
   };
+  var isNew=!_editErrorId;
   var data=getErrors();
-  if(_editErrorId){
+  if(!isNew){
     var idx=data.findIndex(function(x){return x.id===_editErrorId;});
     if(idx>=0)data[idx]=item; else data.push(item);
   } else { data.push(item); }
   saveErrors(data);
+  // Sheets: insert hoặc update từng record, không bulkWrite
+  if(typeof DB!=="undefined"&&DB.isReady()){
+    var op=isNew ? DB.insert("pccc_errors",item) : DB.update("pccc_errors",item.id,item);
+    op.then(function(){ _dbToast(true,"Bản ghi"); }).catch(function(e){ _dbToast(false,e&&e.message||""); });
+  }
   populateMonthFilter();
   renderErrorLog();
   closeErrorModal();
@@ -1081,6 +1074,10 @@ function deleteError(id){
   if(rec&&isMonthLocked(rec.month,rec.year)){showToast("🔒 Tháng "+rec.month+"/"+rec.year+" đã bị khoá. Không thể xóa.","danger");return;}
   if(!confirm("Xóa bản ghi báo lỗi này?"))return;
   saveErrors(getErrors().filter(function(x){return x.id!==id;}));
+  // Sheets: xóa đúng record theo id
+  if(typeof DB!=="undefined"&&DB.isReady()){
+    DB.delete("pccc_errors",id).catch(function(){});
+  }
   populateMonthFilter();
   renderErrorLog();
   showToast("🗑️ Đã xóa","danger");
