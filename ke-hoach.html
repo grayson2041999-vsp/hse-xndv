@@ -286,6 +286,34 @@
   </div>
 </div>
 
+<!-- ===== MODAL XÁC NHẬN HOÀN THÀNH ===== -->
+<div class="modal-bg" id="completionModalBg">
+  <div class="modal" style="width:480px">
+    <div class="modal-head">
+      <h3>✅ Xác nhận hoàn thành công việc</h3>
+      <button class="modal-close" onclick="closeCompletionModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row full" style="margin-bottom:14px">
+        <div class="form-group">
+          <label>Ngày hoàn thành <span class="req">*</span></label>
+          <input class="inp" type="date" id="cmpDate">
+        </div>
+      </div>
+      <div class="form-row full">
+        <div class="form-group">
+          <label>Báo cáo việc hoàn thành <span class="req">*</span></label>
+          <textarea class="inp" id="cmpReport" rows="4" placeholder="Mô tả kết quả hoàn thành công việc..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeCompletionModal()">Hủy</button>
+      <button class="btn btn-primary" onclick="confirmCompletion()">✅ Xác nhận hoàn thành</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== MODAL ĐĂNG NHẬP ===== -->
 <div class="login-modal-bg" id="loginModalBg">
   <div class="login-popup">
@@ -692,18 +720,59 @@ function toggleGroup(key){
 }
 
 /* -------- CHANGE STATUS -------- */
+var _completionTargetId=null;
+
 function changeStatus(id, newStatus){
+  if(newStatus==="Đã hoàn thành"){
+    // Yêu cầu nhập báo cáo và ngày hoàn thành
+    _completionTargetId=id;
+    document.getElementById("cmpDate").value=new Date().toISOString().split("T")[0];
+    document.getElementById("cmpReport").value="";
+    document.getElementById("completionModalBg").classList.add("open");
+    return;
+  }
   var data=getOnce();
   var idx=data.findIndex(function(x){return x.id===id;});
   if(idx<0)return;
   data[idx].status=newStatus;
   saveOnce(data);
   if(typeof DB!=="undefined"&&DB.isReady()){
-    DB.update("ke_hoach_mot_lan",id,{status:newStatus})
-      .catch(function(){});
+    DB.update("ke_hoach_mot_lan",id,{status:newStatus}).catch(function(){});
   }
   savePageLinks();
   renderTable('oncetime');
+}
+
+function closeCompletionModal(){
+  document.getElementById("completionModalBg").classList.remove("open");
+  _completionTargetId=null;
+  renderTable('oncetime'); // reset dropdown về giá trị cũ
+}
+
+function confirmCompletion(){
+  var date=document.getElementById("cmpDate").value;
+  var report=(document.getElementById("cmpReport").value||"").trim();
+  if(!date){showToast("⚠️ Vui lòng chọn ngày hoàn thành","warning");return;}
+  if(!report){showToast("⚠️ Vui lòng nhập báo cáo hoàn thành","warning");return;}
+  var data=getOnce();
+  var idx=data.findIndex(function(x){return x.id===_completionTargetId;});
+  if(idx<0)return;
+  data[idx].status="Đã hoàn thành";
+  data[idx].completionDate=date;
+  data[idx].completionReport=report;
+  saveOnce(data);
+  if(typeof DB!=="undefined"&&DB.isReady()){
+    DB.update("ke_hoach_mot_lan",_completionTargetId,{
+      status:"Đã hoàn thành",
+      completionDate:date,
+      completionReport:report
+    }).catch(function(){});
+  }
+  savePageLinks();
+  document.getElementById("completionModalBg").classList.remove("open");
+  _completionTargetId=null;
+  renderTable('oncetime');
+  showToast("✅ Đã đánh dấu hoàn thành","success");
 }
 
 /* -------- DRAG & DROP (Admin) -------- */
@@ -955,7 +1024,7 @@ function buildForm(type, data){
       '<div class="form-row">'+
         '<div class="form-group">'+
           '<label>Tình trạng</label>'+
-          '<select class="inp" id="fStatus">'+
+          '<select class="inp" id="fStatus" onchange="toggleCompletionFields()">'+
             ['Chưa bắt đầu','Đang thực hiện','Đã hoàn thành'].map(function(s){
               return '<option value="'+s+'"'+((data.status||"Chưa bắt đầu")===s?' selected':'')+'>'+s+'</option>';
             }).join("")+
@@ -973,6 +1042,22 @@ function buildForm(type, data){
           '<input class="inp" id="fCoSo" value="'+esc(data.coSo||"")+'">'+
         '</div>'+
       '</div>')+
+    // Block hoàn thành — hiện khi status = "Đã hoàn thành"
+    (type==="oncetime"?
+      '<div id="completionBlock" style="'+(( data.status==="Đã hoàn thành")?"":"display:none")+';background:#eafaf1;border-left:4px solid var(--success);border-radius:0 8px 8px 0;padding:14px;margin-bottom:14px;">'+
+        '<div style="font-size:12px;font-weight:700;color:var(--success);margin-bottom:10px">✅ Thông tin hoàn thành</div>'+
+        '<div class="form-row">'+
+          '<div class="form-group">'+
+            '<label>Ngày hoàn thành <span class="req">*</span></label>'+
+            '<input class="inp" type="date" id="fCompletionDate" value="'+esc(data.completionDate||"")+'">'+
+          '</div>'+
+        '</div>'+
+        '<div class="form-group">'+
+          '<label>Báo cáo việc hoàn thành <span class="req">*</span></label>'+
+          '<textarea class="inp" id="fCompletionReport" rows="3" placeholder="Mô tả kết quả hoàn thành...">'+esc(data.completionReport||"")+'</textarea>'+
+        '</div>'+
+      '</div>'
+    :"")+
     '<div class="form-row full">'+
     '<div class="form-row full">'+
       '<div class="form-group">'+
@@ -982,6 +1067,13 @@ function buildForm(type, data){
     '</div>'+
     pagesBlock+
   '</div>';
+}
+
+function toggleCompletionFields(){
+  var sel=document.getElementById("fStatus");
+  var block=document.getElementById("completionBlock");
+  if(!sel||!block)return;
+  block.style.display=sel.value==="Đã hoàn thành"?"block":"none";
 }
 
 function toggleAllMonths(){
@@ -1026,6 +1118,14 @@ function saveItem(){
     item.end=(document.getElementById("fEnd")||{}).value||"";
     var stEl=document.getElementById("fStatus");
     item.status=stEl?stEl.value:"Chưa bắt đầu";
+    if(item.status==="Đã hoàn thành"){
+      var cmpDate=(document.getElementById("fCompletionDate")||{}).value||"";
+      var cmpReport=((document.getElementById("fCompletionReport")||{}).value||"").trim();
+      if(!cmpDate){showToast("⚠️ Vui lòng chọn ngày hoàn thành","warning");return;}
+      if(!cmpReport){showToast("⚠️ Vui lòng nhập báo cáo hoàn thành","warning");return;}
+      item.completionDate=cmpDate;
+      item.completionReport=cmpReport;
+    }
     var data=getOnce();
     var isNewOnce=!_editId;
     if(!isNewOnce){
@@ -1170,6 +1270,7 @@ function doLogout(){localStorage.removeItem(K_SESS);location.reload();}
 
 document.getElementById("loginModalBg").addEventListener("click",function(e){if(e.target===this)closeLoginModal();});
 document.getElementById("modalBg").addEventListener("click",function(e){if(e.target===this)closeModal();});
+document.getElementById("completionModalBg").addEventListener("click",function(e){if(e.target===this)closeCompletionModal();});
 
 /* -------- TOAST -------- */
 var _toastTimer;
