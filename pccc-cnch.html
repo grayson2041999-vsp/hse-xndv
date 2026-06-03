@@ -473,7 +473,15 @@ function load(k,d){try{var v=localStorage.getItem(k);return v?JSON.parse(v):d;}c
 function save(k,v){localStorage.setItem(k,JSON.stringify(v));}
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
-function fmtDate(s){if(!s)return"—";var p=s.split("-");return p.length===3?p[2]+"/"+p[1]+"/"+p[0]:s;}
+function fmtDate(s){
+  if(!s)return"—";
+  // Sheets trả về ISO datetime "2026-01-18T17:00:00.000Z" → chỉ lấy phần ngày
+  if(typeof s==="string"&&s.indexOf("T")>=0) s=s.split("T")[0];
+  // Sheets đôi khi trả về Date object
+  if(s instanceof Date) s=s.toISOString().split("T")[0];
+  var p=String(s).split("-");
+  return p.length===3?p[2]+"/"+p[1]+"/"+p[0]:s;
+}
 
 /* ---- AUTH ---- */
 function seedUsers(){
@@ -1001,7 +1009,7 @@ function _doBuild(m,y,errors,devices,newDevices,noSystem,preparedBy,btn,logoBuff
     // Chiều rộng header table (logo + text) = toàn trang kể cả margin trái
     var HDR_LOGO_W=2010; var HDR_TEXT_W=7498; // ≈ 9508 tổng
 
-    function fmtD(s){ if(!s)return""; var p=s.split("-"); return p.length===3?p[2]+"/"+p[1]+"/"+p[0]:s; }
+    function fmtD(s){ if(!s)return""; if(typeof s==="string"&&s.indexOf("T")>=0)s=s.split("T")[0]; var p=String(s).split("-"); return p.length===3?p[2]+"/"+p[1]+"/"+p[0]:s; }
 
     var bdr={style:D.BorderStyle.SINGLE,size:4,color:"000000"};
     var allB={top:bdr,bottom:bdr,left:bdr,right:bdr};
