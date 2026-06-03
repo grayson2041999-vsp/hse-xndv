@@ -142,6 +142,10 @@
     .month-filter{display:flex;align-items:center;gap:10px;background:#fff;border-radius:10px;padding:12px 18px;box-shadow:0 2px 8px rgba(0,0,0,0.07);margin-bottom:18px;}
     .month-filter label{font-size:12.5px;font-weight:600;color:var(--text-light);}
 
+    /* LOCK BADGE */
+    .lock-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11.5px;font-weight:700;background:#fdedec;color:var(--danger);border:1px solid #f5c6cb;}
+    .lock-notice{background:#fdedec;border-left:4px solid var(--danger);padding:9px 14px;border-radius:0 8px 8px 0;font-size:12.5px;color:var(--danger);margin-bottom:12px;display:none;}
+
     /* REPORT PREVIEW */
     .report-preview{background:#f8f9fd;border:1.5px solid var(--border);border-radius:8px;padding:14px;max-height:220px;overflow-y:auto;font-size:12.5px;margin-bottom:14px;}
     .report-preview table{width:100%;border-collapse:collapse;font-size:12px;}
@@ -215,24 +219,25 @@
           <div class="section-card-head">
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
               <div class="section-card-title">📋 Nhật ký báo lỗi hệ thống BCTĐ</div>
-              <span id="syncStatus" style="font-size:11.5px;padding:2px 8px;border-radius:10px;font-weight:600;"></span>
+              <span id="lockBadge" class="lock-badge" style="display:none">🔒 Tháng đã khoá</span>
             </div>
             <div style="display:flex;gap:8px;align-items:center;">
-              <button class="btn btn-outline btn-sm" onclick="manualSync()" title="Kiểm tra kết nối và đồng bộ dữ liệu với Google Sheets">🔄 Sync</button>
               <button class="btn btn-outline btn-sm" id="btnReport" onclick="openReportModal()" style="display:none">📄 Tạo báo cáo</button>
+              <button class="btn btn-sm" id="btnLockMonth" onclick="toggleLockMonth()" style="display:none"></button>
             </div>
             <div style="display:flex;gap:8px;align-items:center;">
               <div class="month-filter" style="margin-bottom:0;padding:6px 12px;box-shadow:none;border:1.5px solid var(--border);border-radius:8px;">
                 <label>Lọc tháng:</label>
-                <select class="inp" id="filterLogMonth" style="width:80px;padding:4px 8px;font-size:12.5px;" onchange="renderErrorLog()">
+                <select class="inp" id="filterLogMonth" style="width:80px;padding:4px 8px;font-size:12.5px;" onchange="renderErrorLog();updateLockUI()">
                   <option value="">Tất cả</option>
                 </select>
-                <select class="inp" id="filterLogYear" style="width:90px;padding:4px 8px;font-size:12.5px;" onchange="renderErrorLog()">
+                <select class="inp" id="filterLogYear" style="width:90px;padding:4px 8px;font-size:12.5px;" onchange="renderErrorLog();updateLockUI()">
                 </select>
               </div>
               <button class="btn btn-primary btn-sm" id="btnAddError" onclick="openErrorModal()">+ Nhập báo lỗi</button>
             </div>
           </div>
+          <div class="lock-notice" id="lockNotice">🔒 Tháng này đã được Admin khoá. Bạn không thể thêm, sửa hoặc xóa bản ghi.</div>
           <div class="table-wrap" style="margin-bottom:0">
             <table>
               <thead>
@@ -534,6 +539,7 @@ var K_USERS   = "hse_users";
 var K_SESS    = "hse_session";
 var K_DEVICES = "hse_pccc_devices";
 var K_ERRORS  = "hse_pccc_errors";
+var K_LOCKED  = "hse_pccc_locked_months";
 
 function load(k,d){try{var v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}}
 function save(k,v){localStorage.setItem(k,JSON.stringify(v));}
@@ -685,6 +691,72 @@ function renderDevices(){
   }).join("");
 }
 
+/* ================================================================
+   KHOÁ THÁNG
+   ================================================================ */
+function getLockedMonths(){ return load(K_LOCKED,[]); }
+
+function isMonthLocked(m,y){
+  return getLockedMonths().some(function(x){ return x.month===m && x.year===y; });
+}
+
+function toggleLockMonth(){
+  var fm=parseInt(document.getElementById("filterLogMonth").value);
+  var fy=parseInt(document.getElementById("filterLogYear").value);
+  if(!fm||!fy){ showToast("⚠️ Vui lòng chọn một tháng cụ thể để khoá/mở khoá","warning"); return; }
+  var locked=isMonthLocked(fm,fy);
+  var u=currentUser();
+  if(locked){
+    if(!confirm("Mở khoá Tháng "+fm+"/"+fy+"? User sẽ có thể chỉnh sửa lại dữ liệu tháng này.")) return;
+    save(K_LOCKED, getLockedMonths().filter(function(x){ return !(x.month===fm&&x.year===fy); }));
+    showToast("🔓 Đã mở khoá Tháng "+fm+"/"+fy,"success");
+  } else {
+    if(!confirm("Khoá Tháng "+fm+"/"+fy+"? User sẽ không thể thêm/sửa/xóa bản ghi tháng này.")) return;
+    var arr=getLockedMonths();
+    arr.push({month:fm, year:fy, lockedAt:new Date().toISOString(), lockedBy:u?(u.fullname||u.username):"Admin"});
+    save(K_LOCKED, arr);
+    showToast("🔒 Đã khoá Tháng "+fm+"/"+fy,"danger");
+  }
+  updateLockUI();
+  renderErrorLog();
+}
+
+function updateLockUI(){
+  var u=currentUser();
+  var adm=isAdmin(u);
+  var fm=parseInt(document.getElementById("filterLogMonth").value);
+  var fy=parseInt(document.getElementById("filterLogYear").value);
+  var specificMonth=!!(fm&&fy);
+  var locked=specificMonth && isMonthLocked(fm,fy);
+
+  // Badge "Tháng đã khoá"
+  var badge=document.getElementById("lockBadge");
+  if(badge) badge.style.display=locked?"":"none";
+
+  // Thông báo cho user
+  var notice=document.getElementById("lockNotice");
+  if(notice) notice.style.display=(locked&&!adm)?"block":"none";
+
+  // Nút khoá/mở khoá (chỉ admin, khi đang lọc tháng cụ thể)
+  var btn=document.getElementById("btnLockMonth");
+  if(btn){
+    btn.style.display=(adm&&specificMonth)?"":"none";
+    if(locked){
+      btn.textContent="🔓 Mở khoá tháng";
+      btn.className="btn btn-sm btn-outline";
+    } else {
+      btn.textContent="🔒 Khoá tháng";
+      btn.className="btn btn-sm btn-danger";
+    }
+  }
+
+  // Nút "+ Nhập báo lỗi": ẩn nếu tháng đã khoá (và user không phải admin)
+  var u2=currentUser();
+  var editable=u2&&canEdit(u2);
+  var btnAdd=document.getElementById("btnAddError");
+  if(btnAdd) btnAdd.style.display=(editable&&!locked)?"":"none";
+}
+
 /* ---- RENDER ERROR LOG ---- */
 function renderErrorLog(){
   var u=currentUser();
@@ -703,9 +775,11 @@ function renderErrorLog(){
   tb.innerHTML=items.map(function(x,i){
     var dev=devices.find(function(d){return d.id===x.deviceId;})||{};
     var errLabel=x.errType==="Khác"?(x.errCustom||"Khác"):"Báo lỗi"+(x.childDevice?" "+x.childDevice:"")+(x.devLocation?" – "+x.devLocation:"");
-    var btns=editable?
+    var rowLocked=isMonthLocked(x.month,x.year);
+    var btns=(editable&&!rowLocked)?
       '<button class="btn btn-edit btn-sm" onclick="openErrorModal(\''+x.id+'\')">✏️</button> '+
-      '<button class="btn btn-danger btn-sm" onclick="deleteError(\''+x.id+'\')">🗑️</button>':'';
+      '<button class="btn btn-danger btn-sm" onclick="deleteError(\''+x.id+'\')">🗑️</button>':
+      (rowLocked?'<span style="font-size:11px;color:var(--danger)">🔒</span>':'');
     var parentLabel=esc(dev.name||x.deviceId);
     var childLabel=esc(x.childDevice||"—")+(x.devLocation?' – <span style="color:var(--text-light)">'+esc(x.devLocation)+'</span>':"");
     return '<tr>'+
@@ -969,6 +1043,7 @@ function saveError(){
   var measure=(document.getElementById("eMeasure").value||"").trim();
   var u=currentUser();
 
+  if(isMonthLocked(month,year)){showToast("🔒 Tháng "+month+"/"+year+" đã bị khoá. Không thể lưu.","danger");return;}
   if(!deviceId){showToast("⚠️ Vui lòng chọn hệ thống","warning");return;}
   if(!childDevice){showToast("⚠️ Vui lòng nhập tên thiết bị","warning");return;}
   if(!devLocation){showToast("⚠️ Vui lòng nhập vị trí thiết bị","warning");return;}
@@ -1002,6 +1077,8 @@ function saveError(){
 }
 
 function deleteError(id){
+  var rec=getErrors().find(function(x){return x.id===id;});
+  if(rec&&isMonthLocked(rec.month,rec.year)){showToast("🔒 Tháng "+rec.month+"/"+rec.year+" đã bị khoá. Không thể xóa.","danger");return;}
   if(!confirm("Xóa bản ghi báo lỗi này?"))return;
   saveErrors(getErrors().filter(function(x){return x.id!==id;}));
   populateMonthFilter();
@@ -1017,8 +1094,7 @@ function setupRoleUI(){
   document.getElementById("adminDeviceSection").style.display=adm?"block":"none";
   var btnR=document.getElementById("btnReport");
   if(btnR) btnR.style.display=adm?"":"none";
-  var btn=document.getElementById("btnAddError");
-  if(btn) btn.style.display=editable?"":"none";
+  updateLockUI();
 }
 
 /* ---- LOGIN ---- */
@@ -1472,13 +1548,11 @@ populateMonthFilter();
 renderDevices();
 renderErrorLog();
 renderKeHoachLinks();
-updateSyncStatus();
 // Pull từ Sheets
 setTimeout(function(){
-  if(typeof DB==="undefined"||!DB.isReady()){ updateSyncStatus(); return; }
+  if(typeof DB==="undefined"||!DB.isReady()) return;
   safePullDevices();
   safePullErrors();
-  setTimeout(updateSyncStatus, 3000);
 },1500);
 </script>
 </body>
