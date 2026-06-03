@@ -956,32 +956,34 @@
   /* =========================================================
      WIDGET: KẾ HOẠCH THÁNG NÀY
      Đọc hse_ke_hoach_links, lọc theo slug + tháng hiện tại
+     Hiển thị thêm: công việc trễ hạn + badge trạng thái
      ========================================================= */
   function renderKeHoachWidget(slug, wrap){
     var now = new Date();
-    var curMonth = now.getMonth() + 1;   // 1–12
+    var curMonth = now.getMonth() + 1;
     var curYear  = now.getFullYear();
+    var firstOfMonth = new Date(curYear, curMonth - 1, 1);
+    var lastOfMonth  = new Date(curYear, curMonth, 0);
 
     var allLinks = load("hse_ke_hoach_links", {});
-    var tasks = (allLinks[slug] || []).filter(function(t){
+    var allTasks = allLinks[slug] || [];
+
+    // Công việc trễ hạn: end < đầu tháng hiện tại, chưa hoàn thành
+    var overdueTasks = allTasks.filter(function(t){
+      if(t.type !== "oncetime") return false;
+      if(t.status === "Đã hoàn thành") return false;
+      if(!t.end) return false;
+      return new Date(t.end) < firstOfMonth;
+    });
+
+    // Công việc trong tháng hiện tại
+    var currentTasks = allTasks.filter(function(t){
       if(t.type === "oncetime"){
-        // Nằm trong khoảng start–end mà khoảng đó giao với tháng hiện tại
         var inRange = true;
-        if(t.start){
-          var s = new Date(t.start);
-          // last day of current month
-          var lastOfMonth = new Date(curYear, curMonth, 0);
-          if(s > lastOfMonth) inRange = false;
-        }
-        if(t.end){
-          var e = new Date(t.end);
-          // first day of current month
-          var firstOfMonth = new Date(curYear, curMonth - 1, 1);
-          if(e < firstOfMonth) inRange = false;
-        }
+        if(t.start && new Date(t.start) > lastOfMonth) inRange = false;
+        if(t.end   && new Date(t.end)   < firstOfMonth) inRange = false;
         return inRange;
       } else {
-        // recurring: allMonths hoặc tháng hiện tại nằm trong months[]
         if(t.allMonths) return true;
         return (t.months||[]).indexOf(curMonth) >= 0;
       }
@@ -991,21 +993,22 @@
                       "Tháng 7","Tháng 8","Tháng 9","Tháng 10","Tháng 11","Tháng 12"][curMonth-1]
                      + "/" + curYear;
 
-    var section = el("div");
-    section.innerHTML =
-      '<div class="section-h" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'+
-        '<span>📋 Kế hoạch ' + monthLabel + '</span>'+
-        '<a href="ke-hoach.html" style="font-size:12px;color:var(--brand);font-weight:600;text-decoration:none">→ Xem & quản lý kế hoạch</a>'+
-      '</div>';
+    // Badge trạng thái
+    function statusBadge(status){
+      if(!status) return "";
+      var styles = {
+        "Đã hoàn thành": "background:#eafaf1;color:#1a7a3c",
+        "Đang thực hiện": "background:#fef5e4;color:#e68900",
+        "Trễ hạn":        "background:#fdedec;color:#c0392b",
+        "Chưa bắt đầu":   "background:#f0f3fa;color:#4a5568"
+      };
+      var s = styles[status] || "background:#f0f3fa;color:#4a5568";
+      return '<span style="'+s+';padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700;margin-left:4px">'+esc(status)+'</span>';
+    }
 
-    if(!tasks.length){
-      section.innerHTML +=
-        '<div style="background:#fff;border-radius:10px;padding:20px 18px;box-shadow:0 2px 8px rgba(0,0,0,0.06);'+
-          'color:var(--text-muted);font-size:13px;text-align:center;">'+
-          '✅ Không có công việc kế hoạch nào trong ' + monthLabel + '.'+
-        '</div>';
-    } else {
-      var rows = tasks.map(function(t, i){
+    // Render hàng bảng
+    function renderRows(tasks){
+      return tasks.map(function(t, i){
         var typeBadge = t.type === "oncetime"
           ? '<span style="background:#dceaf7;color:#003087;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700">Một lần</span>'
           : '<span style="background:#eafaf1;color:#1a7a3c;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700">Lặp lại</span>';
@@ -1021,7 +1024,7 @@
         var ph = Array.isArray(t.phoiHop) ? t.phoiHop.join(", ") : (t.phoiHop || "—");
         return '<tr>'+
           '<td style="color:var(--text-muted);font-size:12px;width:30px">'+(i+1)+'</td>'+
-          '<td style="font-weight:600">'+ esc(t.name) +'</td>'+
+          '<td style="font-weight:600">'+ esc(t.name) + (t.status ? statusBadge(t.status) : "") +'</td>'+
           '<td>'+ typeBadge +'</td>'+
           '<td style="white-space:nowrap;font-size:12.5px">'+ esc(ngayTH) +'</td>'+
           '<td style="font-size:12.5px">'+ esc(t.chuTri||"—") +'</td>'+
@@ -1030,25 +1033,51 @@
           '<td style="font-size:12px;color:var(--text-muted)">'+ esc(t.ghiChu||"—") +'</td>'+
           '</tr>';
       }).join("");
+    }
 
+    function tableWrap(rows, headerBg, headerColor){
+      headerBg    = headerBg    || "#dde6f3";
+      headerColor = headerColor || "#003087";
+      var th = function(txt){ return '<th style="background:'+headerBg+';color:'+headerColor+';padding:9px 12px;font-size:12.5px;text-align:left">'+txt+'</th>'; };
+      return '<div style="background:#fff;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.07);overflow:auto">'+
+        '<table style="width:100%;border-collapse:collapse">'+
+          '<thead><tr>'+
+            '<th style="background:'+headerBg+';color:'+headerColor+';padding:9px 12px;font-size:12.5px;text-align:left;width:30px">#</th>'+
+            th('Nội dung công việc')+th('Loại')+th('Ngày thực hiện')+
+            th('Đơn vị chủ trì')+th('Đơn vị phối hợp')+th('Cơ sở')+th('Ghi chú')+
+          '</tr></thead>'+
+          '<tbody>'+rows+'</tbody>'+
+        '</table>'+
+      '</div>';
+    }
+
+    var section = el("div");
+    section.innerHTML =
+      '<div class="section-h" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'+
+        '<span>📋 Kế hoạch ' + monthLabel + '</span>'+
+        '<a href="ke-hoach.html" style="font-size:12px;color:var(--brand);font-weight:600;text-decoration:none">→ Xem & quản lý kế hoạch</a>'+
+      '</div>';
+
+    // --- Cảnh báo trễ hạn ---
+    if(overdueTasks.length){
       section.innerHTML +=
-        '<div style="background:#fff;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.07);overflow:auto">'+
-          '<table style="width:100%;border-collapse:collapse">'+
-            '<thead>'+
-              '<tr>'+
-                '<th style="background:#dde6f3;color:#003087;padding:9px 12px;font-size:12.5px;text-align:left;width:30px">#</th>'+
-                '<th style="background:#dde6f3;color:#003087;padding:9px 12px;font-size:12.5px;text-align:left">Nội dung công việc</th>'+
-                '<th style="background:#dde6f3;color:#003087;padding:9px 12px;font-size:12.5px;text-align:left">Loại</th>'+
-                '<th style="background:#dde6f3;color:#003087;padding:9px 12px;font-size:12.5px;text-align:left">Ngày thực hiện</th>'+
-                '<th style="background:#dde6f3;color:#003087;padding:9px 12px;font-size:12.5px;text-align:left">Đơn vị chủ trì</th>'+
-                '<th style="background:#dde6f3;color:#003087;padding:9px 12px;font-size:12.5px;text-align:left">Đơn vị phối hợp</th>'+
-                '<th style="background:#dde6f3;color:#003087;padding:9px 12px;font-size:12.5px;text-align:left">Cơ sở</th>'+
-                '<th style="background:#dde6f3;color:#003087;padding:9px 12px;font-size:12.5px;text-align:left">Ghi chú</th>'+
-              '</tr>'+
-            '</thead>'+
-            '<tbody>'+ rows +'</tbody>'+
-          '</table>'+
+        '<div style="background:#fdedec;border-left:4px solid #c0392b;border-radius:0 8px 8px 0;'+
+          'padding:9px 14px;margin-bottom:10px;font-size:12.5px;font-weight:700;color:#c0392b;">'+
+          '⚠️ ' + overdueTasks.length + ' công việc trễ hạn chưa hoàn thành'+
         '</div>';
+      section.innerHTML += tableWrap(renderRows(overdueTasks), "#fdedec", "#c0392b");
+      section.innerHTML += '<div style="height:14px"></div>';
+    }
+
+    // --- Công việc tháng hiện tại ---
+    if(!currentTasks.length && !overdueTasks.length){
+      section.innerHTML +=
+        '<div style="background:#fff;border-radius:10px;padding:20px 18px;box-shadow:0 2px 8px rgba(0,0,0,0.06);'+
+          'color:var(--text-muted);font-size:13px;text-align:center;">'+
+          '✅ Không có công việc kế hoạch nào trong ' + monthLabel + '.'+
+        '</div>';
+    } else if(currentTasks.length){
+      section.innerHTML += tableWrap(renderRows(currentTasks));
     }
 
     wrap.appendChild(section);
