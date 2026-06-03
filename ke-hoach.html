@@ -286,6 +286,20 @@
   </div>
 </div>
 
+<!-- ===== MODAL XEM THÔNG TIN HOÀN THÀNH ===== -->
+<div class="modal-bg" id="viewCompletionModalBg">
+  <div class="modal" style="width:500px">
+    <div class="modal-head">
+      <h3>📋 Thông tin hoàn thành công việc</h3>
+      <button class="modal-close" onclick="closeViewCompletionModal()">×</button>
+    </div>
+    <div class="modal-body" id="viewCompletionBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="closeViewCompletionModal()">Đóng</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== MODAL XÁC NHẬN HOÀN THÀNH ===== -->
 <div class="modal-bg" id="completionModalBg">
   <div class="modal" style="width:480px">
@@ -397,7 +411,13 @@ function getUsers(){return load(K_USERS,[]);}
 function findUser(un){var us=getUsers();for(var i=0;i<us.length;i++)if(us[i].username===un)return us[i];return null;}
 function currentUser(){var un=load(K_SESS,null);return un?findUser(un):null;}
 function isAdmin(u){return u&&u.role==="admin";}
-function canEdit(u){if(!u)return false;if(u.role==="viewer")return false;return true;}
+function canEdit(u){
+  if(!u) return false;
+  if(u.role==="viewer") return false;
+  if(u.role==="admin") return true;
+  // User: phải có quyền "ke-hoach" trong danh sách perms
+  return (u.perms||[]).indexOf("ke-hoach") >= 0;
+}
 
 /* -------- SIDEBAR -------- */
 function buildSidebar(){
@@ -559,15 +579,15 @@ function renderTable(type){
 
     var TH_COLS='<th style="width:28px"></th>'+ // drag handle
       '<th style="width:28px">#</th>'+
-      '<th>Nội dung công việc</th>'+
-      '<th style="width:130px">Tình trạng</th>'+
-      '<th>Đơn vị chủ trì</th>'+
+      '<th style="min-width:280px">Nội dung công việc</th>'+
+      '<th style="width:110px">Tình trạng</th>'+
+      '<th style="width:130px">Đơn vị chủ trì</th>'+
       '<th>Đơn vị phối hợp</th>'+
-      '<th>Bắt đầu</th>'+
-      '<th>Kết thúc</th>'+
-      '<th>Trang liên quan</th>'+
-      '<th>Ghi chú</th>'+
-      '<th style="width:80px"></th>';
+      '<th style="width:90px">Bắt đầu</th>'+
+      '<th style="width:90px">Kết thúc</th>'+
+      '<th style="width:130px">Trang liên quan</th>'+
+      '<th style="width:110px">Ghi chú</th>'+
+      '<th style="width:100px"></th>';
 
     var html="";
     STATUS_GROUPS.forEach(function(grp){
@@ -611,22 +631,26 @@ function renderTable(type){
             stCell=stBadge;
           }
           var drag=isAdm?'<td class="drag-handle" draggable="false">⠿</td>':'<td></td>';
+          var completionBtn=(st==="Đã hoàn thành")?
+            '<button class="btn btn-sm" style="background:#eafaf1;color:var(--success);border:1px solid #a9dfbf;margin-bottom:3px" onclick="viewCompletion(\''+x.id+'\')">📋 Xem</button><br>':'';
           var btns=editable?
+            completionBtn+
             '<button class="btn btn-edit btn-sm" onclick="openModal(\'oncetime\',\''+x.id+'\')">✏️</button> '+
-            '<button class="btn btn-danger btn-sm" onclick="deleteItem(\'oncetime\',\''+x.id+'\')">🗑️</button>':'';
+            '<button class="btn btn-danger btn-sm" onclick="deleteItem(\'oncetime\',\''+x.id+'\')">🗑️</button>'
+            :(st==="Đã hoàn thành"?completionBtn:'');
           var gk=grp.key; var dragAttrs=isAdm?'ondragover="onDragOver(event)" ondrop="onDrop(event,this)" ondragleave="this.classList.remove(\'drag-over\')"':'';
           html+='<tr data-id="'+x.id+'" data-group="'+esc(gk)+'" '+dragAttrs+'>'+
             drag+
             '<td style="color:var(--text-light);font-size:12px">'+(i+1)+'</td>'+
-            '<td style="font-weight:600;max-width:200px">'+esc(x.name)+'</td>'+
+            '<td style="font-weight:600">'+esc(x.name)+'</td>'+
             '<td>'+stCell+'</td>'+
-            '<td style="font-size:12.5px">'+esc(x.chuTri||"—")+'</td>'+
+            '<td style="font-size:12px">'+esc(x.chuTri||"—")+'</td>'+
             '<td style="font-size:12px">'+ph+'</td>'+
             '<td style="white-space:nowrap;font-size:12px"><span class="badge badge-blue">'+fmtDate(x.start)+'</span></td>'+
             '<td style="white-space:nowrap;font-size:12px"><span class="badge badge-orange">'+fmtDate(x.end)+'</span></td>'+
-            '<td style="max-width:160px">'+( pages||'<span style="color:var(--text-light);font-size:12px">—</span>')+'</td>'+
-            '<td style="font-size:12px;color:var(--text-light);max-width:130px">'+esc(x.ghiChu||"—")+'</td>'+
-            '<td style="white-space:nowrap">'+btns+'</td>'+
+            '<td>'+( pages||'<span style="color:var(--text-light);font-size:12px">—</span>')+'</td>'+
+            '<td style="font-size:12px;color:var(--text-light)">'+esc(x.ghiChu||"—")+'</td>'+
+            '<td style="white-space:nowrap;vertical-align:middle">'+btns+'</td>'+
             '</tr>';
         });
         html+='</tbody></table>';
@@ -717,6 +741,40 @@ function toggleGroup(key){
     var span=header.querySelector('span:last-child');
     if(span) span.textContent=collapsed?'▶ Mở ra':'▼ Thu gọn';
   }
+}
+
+/* -------- XEM THÔNG TIN HOÀN THÀNH -------- */
+function viewCompletion(id){
+  var item=getOnce().find(function(x){return x.id===id;});
+  if(!item)return;
+  var body=document.getElementById("viewCompletionBody");
+  body.innerHTML=
+    '<div style="margin-bottom:16px">'+
+      '<div style="font-size:12px;font-weight:600;color:var(--text-light);margin-bottom:4px">Tên công việc</div>'+
+      '<div style="font-size:14px;font-weight:700;color:var(--primary)">'+esc(item.name)+'</div>'+
+    '</div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">'+
+      '<div>'+
+        '<div style="font-size:12px;font-weight:600;color:var(--text-light);margin-bottom:4px">Ngày hoàn thành</div>'+
+        '<div style="font-size:14px;font-weight:700;color:var(--success)">'+
+          (item.completionDate?fmtDate(item.completionDate):'<span style="color:var(--text-light);font-style:italic">Chưa ghi nhận</span>')+
+        '</div>'+
+      '</div>'+
+      '<div>'+
+        '<div style="font-size:12px;font-weight:600;color:var(--text-light);margin-bottom:4px">Người thực hiện</div>'+
+        '<div style="font-size:13px">'+esc(item.chuTri||"—")+'</div>'+
+      '</div>'+
+    '</div>'+
+    '<div>'+
+      '<div style="font-size:12px;font-weight:600;color:var(--text-light);margin-bottom:6px">Báo cáo hoàn thành</div>'+
+      '<div style="background:#f8f9fd;border:1.5px solid var(--border);border-radius:8px;padding:14px;font-size:13px;line-height:1.7;white-space:pre-wrap">'+
+        (item.completionReport?esc(item.completionReport):'<span style="color:var(--text-light);font-style:italic">Chưa có báo cáo</span>')+
+      '</div>'+
+    '</div>';
+  document.getElementById("viewCompletionModalBg").classList.add("open");
+}
+function closeViewCompletionModal(){
+  document.getElementById("viewCompletionModalBg").classList.remove("open");
 }
 
 /* -------- CHANGE STATUS -------- */
@@ -1206,9 +1264,18 @@ function savePageLinks(){
   getOnce().forEach(function(item){
     (item.pages||[]).forEach(function(slug){
       if(!allLinks[slug])allLinks[slug]=[];
+      // Tính trạng thái thực tế (kể cả trễ hạn)
+      var computedStatus=item.status||"Chưa bắt đầu";
+      if(computedStatus!=="Đã hoàn thành"&&item.end){
+        var today=new Date(); today.setHours(0,0,0,0);
+        if(new Date(item.end)<today) computedStatus="Trễ hạn";
+      }
       allLinks[slug].push({
         id:item.id, type:"oncetime", name:item.name,
         start:item.start, end:item.end,
+        status:computedStatus,
+        completionDate:item.completionDate||"",
+        completionReport:item.completionReport||"",
         chuTri:item.chuTri, phoiHop:item.phoiHop,
         coSo:item.coSo, ghiChu:item.ghiChu
       });
@@ -1271,6 +1338,7 @@ function doLogout(){localStorage.removeItem(K_SESS);location.reload();}
 document.getElementById("loginModalBg").addEventListener("click",function(e){if(e.target===this)closeLoginModal();});
 document.getElementById("modalBg").addEventListener("click",function(e){if(e.target===this)closeModal();});
 document.getElementById("completionModalBg").addEventListener("click",function(e){if(e.target===this)closeCompletionModal();});
+document.getElementById("viewCompletionModalBg").addEventListener("click",function(e){if(e.target===this)closeViewCompletionModal();});
 
 /* -------- TOAST -------- */
 var _toastTimer;

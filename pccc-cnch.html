@@ -565,7 +565,12 @@ function getUsers(){return load(K_USERS,[]);}
 function findUser(un){var us=getUsers();for(var i=0;i<us.length;i++)if(us[i].username===un)return us[i];return null;}
 function currentUser(){var un=load(K_SESS,null);return un?findUser(un):null;}
 function isAdmin(u){return u&&u.role==="admin";}
-function canEdit(u){return u&&u.role!=="viewer";}
+function canEdit(u){
+  if(!u) return false;
+  if(u.role==="viewer") return false;
+  if(u.role==="admin") return true;
+  return (u.perms||[]).indexOf("pccc-cnch") >= 0;
+}
 function canView(u){
   if(!u)return true;
   if(u.role==="admin")return true;
