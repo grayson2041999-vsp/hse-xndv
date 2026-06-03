@@ -615,7 +615,7 @@ function populateMonthFilter(){
   var selM=document.getElementById("filterLogMonth");
   var selY=document.getElementById("filterLogYear");
   var curM=selM.value, curY=selY.value;
-  selM.innerHTML='<option value="">Tất cả tháng</option>'+
+  selM.innerHTML='<option value="">Tất cả</option>'+
     [1,2,3,4,5,6,7,8,9,10,11,12].map(function(m){
       return '<option value="'+m+'"'+(String(m)===curM?' selected':'')+'>Tháng '+m+'</option>';
     }).join("");
