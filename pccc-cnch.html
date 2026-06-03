@@ -1395,59 +1395,74 @@ function _doBuild(m,y,errors,devices,newDevices,noSystem,preparedBy,btn,logoBuff
         hCell("Biện pháp khắc phục\nМероприятия для устранения",COLS[5])
       ]})
     ];
-    if(errors.length){
-      var grouped=[];
-      errors.forEach(function(e){
-        var g=grouped.find(function(x){return x.deviceId===e.deviceId;});
-        if(g){g.items.push(e);}
-        else{
-          var dev=devices.find(function(d){return d.id===e.deviceId;})||{};
-          grouped.push({deviceId:e.deviceId,dev:dev,items:[e]});
-        }
-      });
-      var rowNum=0;
-      grouped.forEach(function(g){
-        var dev=g.dev;
-        var devLabel=dev.name||"";
-        g.items.forEach(function(e,idx){
-          rowNum++;
-          var eLabel=e.errType==="Khác"?(e.errCustom||"Khác"):"Báo lỗi"+(e.childDevice?" "+e.childDevice:"")+(e.devLocation?" – "+e.devLocation:"");
-          var rowCells=[];
-          if(idx===0){
-            rowCells.push(new D.TableCell({borders:allB,width:{size:COLS[0],type:D.WidthType.DXA},
-              rowSpan:g.items.length,margins:{top:60,bottom:60,left:80,right:80},
-              verticalAlign:D.VerticalAlign.CENTER,
-              children:[new D.Paragraph({alignment:D.AlignmentType.CENTER,
-                children:[new D.TextRun({text:String(rowNum-(g.items.length-1)),size:20,font:"Times New Roman"})]})]
-            }));
-            rowCells.push(new D.TableCell({borders:allB,width:{size:COLS[1],type:D.WidthType.DXA},
-              rowSpan:g.items.length,margins:{top:60,bottom:60,left:80,right:80},
-              verticalAlign:D.VerticalAlign.CENTER,
-              children:[new D.Paragraph({
-                children:[new D.TextRun({text:devLabel,bold:true,size:20,font:"Times New Roman"})]})]
-            }));
-            rowCells.push(new D.TableCell({borders:allB,width:{size:COLS[2],type:D.WidthType.DXA},
-              rowSpan:g.items.length,margins:{top:60,bottom:60,left:80,right:80},
-              verticalAlign:D.VerticalAlign.CENTER,
-              children:[new D.Paragraph({
-                children:[new D.TextRun({text:dev.location||"",size:20,font:"Times New Roman"})]})]
-            }));
-          }
-          rowCells.push(dCell(eLabel,COLS[3]));
-          rowCells.push(dCell(fmtD(e.detectDate),COLS[4],true));
-          rowCells.push(dCell(e.measure||"",COLS[5]));
-          errRows.push(new D.TableRow({children:rowCells}));
-        });
-      });
-    } else {
+    // Gom lỗi theo deviceId
+    var errorsByDevice={};
+    errors.forEach(function(e){
+      if(!errorsByDevice[e.deviceId]) errorsByDevice[e.deviceId]=[];
+      errorsByDevice[e.deviceId].push(e);
+    });
+
+    if(!devices.length){
+      // Chưa có hệ thống nào
       errRows.push(new D.TableRow({children:[
         new D.TableCell({borders:allB,width:{size:TW,type:D.WidthType.DXA},columnSpan:6,
           margins:{top:80,bottom:80,left:80,right:80},
           children:[new D.Paragraph({alignment:D.AlignmentType.CENTER,
-            children:[new D.TextRun({text:"Không có thiết bị báo lỗi trong tháng / Нет",italics:true,size:20,font:"Times New Roman"})]
+            children:[new D.TextRun({text:"Chưa có hệ thống nào được cấu hình",italics:true,size:20,font:"Times New Roman"})]
           })]
         })
       ]}));
+    } else {
+      var rowNum=0;
+      devices.forEach(function(dev){
+        var devErrors=errorsByDevice[dev.id]||[];
+        rowNum++;
+        if(!devErrors.length){
+          // Hệ thống không có lỗi → 1 hàng, ghi "Không ghi nhận hư hỏng/báo lỗi"
+          errRows.push(new D.TableRow({children:[
+            dCell(String(rowNum),COLS[0],true),
+            new D.TableCell({borders:allB,width:{size:COLS[1],type:D.WidthType.DXA},
+              margins:{top:60,bottom:60,left:80,right:80},verticalAlign:D.VerticalAlign.CENTER,
+              children:[new D.Paragraph({children:[new D.TextRun({text:dev.name||"",bold:true,size:20,font:"Times New Roman"})]})]
+            }),
+            dCell(dev.location||"",COLS[2]),
+            new D.TableCell({borders:allB,width:{size:COLS[3],type:D.WidthType.DXA},
+              margins:{top:60,bottom:60,left:80,right:80},verticalAlign:D.VerticalAlign.CENTER,
+              children:[new D.Paragraph({children:[new D.TextRun({text:"Không ghi nhận hư hỏng/báo lỗi",italics:true,size:20,font:"Times New Roman"})]})]
+            }),
+            dCell("",COLS[4],true),
+            dCell("",COLS[5])
+          ]}));
+        } else {
+          // Hệ thống có lỗi → gộp các hàng bằng rowSpan
+          devErrors.forEach(function(e,idx){
+            var eLabel=e.errType==="Khác"?(e.errCustom||"Khác"):"Báo lỗi"+(e.childDevice?" "+e.childDevice:"")+(e.devLocation?" – "+e.devLocation:"");
+            var rowCells=[];
+            if(idx===0){
+              rowCells.push(new D.TableCell({borders:allB,width:{size:COLS[0],type:D.WidthType.DXA},
+                rowSpan:devErrors.length,margins:{top:60,bottom:60,left:80,right:80},
+                verticalAlign:D.VerticalAlign.CENTER,
+                children:[new D.Paragraph({alignment:D.AlignmentType.CENTER,
+                  children:[new D.TextRun({text:String(rowNum),size:20,font:"Times New Roman"})]})]
+              }));
+              rowCells.push(new D.TableCell({borders:allB,width:{size:COLS[1],type:D.WidthType.DXA},
+                rowSpan:devErrors.length,margins:{top:60,bottom:60,left:80,right:80},
+                verticalAlign:D.VerticalAlign.CENTER,
+                children:[new D.Paragraph({children:[new D.TextRun({text:dev.name||"",bold:true,size:20,font:"Times New Roman"})]})]
+              }));
+              rowCells.push(new D.TableCell({borders:allB,width:{size:COLS[2],type:D.WidthType.DXA},
+                rowSpan:devErrors.length,margins:{top:60,bottom:60,left:80,right:80},
+                verticalAlign:D.VerticalAlign.CENTER,
+                children:[new D.Paragraph({children:[new D.TextRun({text:dev.location||"",size:20,font:"Times New Roman"})]})]
+              }));
+            }
+            rowCells.push(dCell(eLabel,COLS[3]));
+            rowCells.push(dCell(fmtD(e.detectDate),COLS[4],true));
+            rowCells.push(dCell(e.measure||"",COLS[5]));
+            errRows.push(new D.TableRow({children:rowCells}));
+          });
+        }
+      });
     }
 
     var sigTable=new D.Table({
