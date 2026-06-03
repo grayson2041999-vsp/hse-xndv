@@ -430,22 +430,15 @@ function buildTopbar(){
 function getOnce(){return load(K_ONCETIME,[]);}
 function getRecur(){return load(K_RECUR,[]);}
 
-function saveOnce(data){
-  if(typeof DB!=="undefined"&&DB.isReady()){
-    DB.cachedSave(K_ONCETIME,"ke_hoach_mot_lan",data);
-    showToast("☁️ Đang đồng bộ lên Google Sheets...","info");
-  } else {
-    save(K_ONCETIME,data);
-  }
+/* saveOnce / saveRecur: chỉ lưu localStorage, Sheets xử lý riêng từng thao tác */
+function saveOnce(data){ save(K_ONCETIME,data); }
+function saveRecur(data){ save(K_RECUR,data); }
+
+function _khToast(ok,msg){
+  if(ok) showToast("☁️ "+msg+" đã lên Sheets","info");
+  else   showToast("⚠️ Lưu local OK, chưa sync Sheets: "+msg,"warning");
 }
-function saveRecur(data){
-  if(typeof DB!=="undefined"&&DB.isReady()){
-    DB.cachedSave(K_RECUR,"ke_hoach_lap_lai",data);
-    showToast("☁️ Đang đồng bộ lên Google Sheets...","info");
-  } else {
-    save(K_RECUR,data);
-  }
-}
+
 function loadOnceFromSheets(){
   if(typeof DB==="undefined"||!DB.isReady())return;
   DB.getAll("ke_hoach_mot_lan").then(function(rows){
@@ -705,6 +698,10 @@ function changeStatus(id, newStatus){
   if(idx<0)return;
   data[idx].status=newStatus;
   saveOnce(data);
+  if(typeof DB!=="undefined"&&DB.isReady()){
+    DB.update("ke_hoach_mot_lan",id,{status:newStatus})
+      .catch(function(){});
+  }
   savePageLinks();
   renderTable('oncetime');
 }
@@ -1030,7 +1027,8 @@ function saveItem(){
     var stEl=document.getElementById("fStatus");
     item.status=stEl?stEl.value:"Chưa bắt đầu";
     var data=getOnce();
-    if(_editId){
+    var isNewOnce=!_editId;
+    if(!isNewOnce){
       var idx=data.findIndex(function(x){return x.id===_editId;});
       if(idx>=0){ item.order=data[idx].order; data[idx]=item; } else data.push(item);
     } else {
@@ -1038,6 +1036,15 @@ function saveItem(){
       data.push(item);
     }
     saveOnce(data);
+    if(typeof DB!=="undefined"&&DB.isReady()){
+      var _op=isNewOnce
+        ? DB.insert("ke_hoach_mot_lan",item)
+        : DB.update("ke_hoach_mot_lan",item.id,item).catch(function(e){
+            if(e&&e.message&&e.message.indexOf("tìm thấy")>=0) return DB.insert("ke_hoach_mot_lan",item);
+            throw e;
+          });
+      _op.then(function(){ _khToast(true,"Công việc"); }).catch(function(e){ _khToast(false,e&&e.message||""); });
+    }
   } else {
     var allM=document.getElementById("fAllMonths");
     item.allMonths=allM&&allM.checked;
@@ -1052,11 +1059,21 @@ function saveItem(){
     var dayInp=document.getElementById("fExecDay");
     item.execDay=item.lastDay?"":((dayInp&&dayInp.value)?parseInt(dayInp.value):"");
     var data=getRecur();
-    if(_editId){
+    var isNewRecur=!_editId;
+    if(!isNewRecur){
       var idx=data.findIndex(function(x){return x.id===_editId;});
       if(idx>=0)data[idx]=item; else data.push(item);
     } else { data.push(item); }
     saveRecur(data);
+    if(typeof DB!=="undefined"&&DB.isReady()){
+      var _op2=isNewRecur
+        ? DB.insert("ke_hoach_lap_lai",item)
+        : DB.update("ke_hoach_lap_lai",item.id,item).catch(function(e){
+            if(e&&e.message&&e.message.indexOf("tìm thấy")>=0) return DB.insert("ke_hoach_lap_lai",item);
+            throw e;
+          });
+      _op2.then(function(){ _khToast(true,"Công việc"); }).catch(function(e){ _khToast(false,e&&e.message||""); });
+    }
   }
 
   // Lưu liên kết cho trang chủ module
@@ -1069,12 +1086,14 @@ function saveItem(){
 
 function deleteItem(type,id){
   if(!confirm("Bạn có chắc muốn xóa công việc này?"))return;
+  var sheet=type==="oncetime"?"ke_hoach_mot_lan":"ke_hoach_lap_lai";
   if(type==="oncetime"){
-    var data=getOnce().filter(function(x){return x.id!==id;});
-    saveOnce(data);
+    saveOnce(getOnce().filter(function(x){return x.id!==id;}));
   } else {
-    var data=getRecur().filter(function(x){return x.id!==id;});
-    saveRecur(data);
+    saveRecur(getRecur().filter(function(x){return x.id!==id;}));
+  }
+  if(typeof DB!=="undefined"&&DB.isReady()){
+    DB.delete(sheet,id).catch(function(){});
   }
   savePageLinks();
   renderTable(type);
