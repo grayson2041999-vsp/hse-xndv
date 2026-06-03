@@ -39,7 +39,7 @@ var DB = (function() {
   //  Sau khi đặt URL này, mọi người dùng đều tự kết nối
   //  mà không cần nhập thủ công trong Quản trị hệ thống
   // ═══════════════════════════════════════════════════
-  var DEFAULT_URL = "https://script.google.com/macros/s/AKfycbxmtKMjSMMKf0bLic8eOogKwpY4ZhOB6NwRDYKUJEDN0dcWKQu-hKsBUbI0XLOacrAOyw/exec";
+  var DEFAULT_URL = "https://script.google.com/macros/s/AKfycby3WJV4dpICMTXTy3_AvUNbd9lI4PawQ8ksOM7bK8B_ztGvv_-2lu32ywOMZtmjwwshLw/exec";
 
   var _url = "";
   var _currentUser = "";
@@ -116,15 +116,21 @@ var DB = (function() {
     return _fetch(_url + "?" + qs);
   }
 
-  /* ─── Gọi API (dùng GET cho tất cả — tránh CORS/redirect của Apps Script) ─── */
+  /* ─── Gọi API (POST form-encoded — không trigger CORS preflight, không giới hạn URL) ─── */
   function _post(params, body) {
     if (!_url) return Promise.reject(new Error("Chưa cấu hình DB URL."));
     var bodyWithUser = Object.assign({}, body, { user: _currentUser });
     var allParams = Object.assign({}, params, { payload: JSON.stringify(bodyWithUser) });
-    var qs = Object.keys(allParams).map(function(k) {
+    // Dùng POST với Content-Type: application/x-www-form-urlencoded
+    // → không bị giới hạn độ dài URL, không trigger CORS preflight
+    var formBody = Object.keys(allParams).map(function(k) {
       return encodeURIComponent(k) + "=" + encodeURIComponent(allParams[k]);
     }).join("&");
-    return _fetch(_url + "?" + qs);
+    return _fetch(_url, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: formBody
+    });
   }
 
   /* ─── ID generator (client-side) ─── */
