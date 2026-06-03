@@ -4,11 +4,1277 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PCCC & CNCH · Quản lý HSE</title>
-  <link rel="stylesheet" href="assets/style.css">
+  <style>
+    :root {
+      --primary:       #003087;
+      --primary-light: #0060B6;
+      --primary-dark:  #002065;
+      --accent:        #C8102E;
+      --success:       #1a7a3c;
+      --warning:       #e68900;
+      --danger:        #c0392b;
+      --bg:            #EDF1F8;
+      --card:          #ffffff;
+      --text:          #1a2535;
+      --text-light:    #6b7c93;
+      --border:        #cdd6e8;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text);font-size:13.5px;}
+
+    /* LAYOUT */
+    .layout{display:flex;min-height:100vh;}
+    .sidebar{width:230px;background:var(--primary);position:fixed;top:0;left:0;bottom:0;z-index:90;display:flex;flex-direction:column;overflow-y:auto;}
+    .sidebar-head{padding:14px 16px 12px;border-bottom:1px solid rgba(255,255,255,0.12);}
+    .sidebar-head .logo{width:46px;height:46px;margin-bottom:8px;}
+    .sidebar-head .logo img{width:100%;height:100%;object-fit:contain;}
+    .sidebar-head .t1{font-size:13px;font-weight:700;color:#fff;}
+    .sidebar-head .t2{font-size:10px;color:rgba(255,255,255,0.6);line-height:1.4;margin-top:2px;}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:10px 18px;color:rgba(255,255,255,0.72);font-size:13px;border-left:3px solid transparent;transition:all .15s;text-decoration:none;}
+    .nav-item:hover{background:rgba(255,255,255,0.08);color:#fff;}
+    .nav-item.active{background:rgba(0,32,101,0.45);border-left-color:var(--accent);color:#fff;font-weight:600;}
+    .main{margin-left:230px;padding:76px 28px 40px;}
+
+    /* TOPBAR */
+    .topbar{background:linear-gradient(135deg,#003087 0%,#0060B6 100%);border-bottom:3px solid var(--accent);color:#fff;height:58px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;position:fixed;top:0;left:230px;right:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,0.25);}
+    .topbar-right{display:flex;align-items:center;gap:10px;}
+    .user-badge{background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.3);border-radius:7px;padding:5px 12px;font-size:12px;color:#fff;display:flex;align-items:center;gap:6px;}
+    .btn-login{background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.35);color:#fff;padding:5px 14px;border-radius:7px;font-size:12.5px;font-weight:600;cursor:pointer;}
+    .btn-login:hover{background:rgba(255,255,255,0.25);}
+
+    /* TABS */
+    .page-title{font-size:20px;font-weight:700;color:var(--primary);margin-bottom:4px;}
+    .page-desc{font-size:12.5px;color:var(--text-light);margin-bottom:20px;}
+    .tab-bar{display:flex;border-bottom:2px solid var(--border);margin-bottom:22px;}
+    .tab-btn{padding:10px 22px;font-size:13.5px;font-weight:600;color:var(--text-light);cursor:pointer;border:none;background:none;border-bottom:2.5px solid transparent;margin-bottom:-2px;transition:all .15s;}
+    .tab-btn:hover{color:var(--primary);}
+    .tab-btn.active{color:var(--primary);border-bottom-color:var(--primary);}
+    .tab-pane{display:none;}
+    .tab-pane.active{display:block;}
+
+    /* BUTTONS */
+    .btn{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .15s;}
+    .btn-primary{background:var(--primary-light);color:#fff;}
+    .btn-primary:hover{background:var(--primary);}
+    .btn-danger{background:#fdedec;color:var(--danger);border:1px solid #f5c6cb;}
+    .btn-danger:hover{background:#f5c6cb;}
+    .btn-edit{background:#dceaf7;color:var(--primary);border:1px solid #b8d4ef;}
+    .btn-edit:hover{background:#b8d4ef;}
+    .btn-sm{padding:4px 10px;font-size:12px;}
+    .btn-outline{background:#fff;border:1.5px solid var(--primary-light);color:var(--primary-light);}
+    .btn-outline:hover{background:#dceaf7;}
+
+    /* TOOLBAR */
+    .toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:8px;flex-wrap:wrap;}
+    .toolbar-left{display:flex;align-items:center;gap:8px;}
+    .search-box{border:1.5px solid var(--border);border-radius:7px;padding:6px 12px;font-size:13px;width:220px;outline:none;background:#fff;}
+    .search-box:focus{border-color:var(--primary-light);}
+
+    /* TABLE */
+    .table-wrap{background:#fff;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.07);overflow:auto;margin-bottom:24px;}
+    table{width:100%;border-collapse:collapse;}
+    th{background:#dde6f3;color:var(--primary);font-size:12.5px;font-weight:700;padding:10px 14px;text-align:left;white-space:nowrap;}
+    td{padding:9px 14px;border-bottom:1px solid #f0f3fa;font-size:13px;vertical-align:middle;}
+    tr:last-child td{border-bottom:none;}
+    tr:hover td{background:#eef3fb;}
+    .empty-row td{text-align:center;color:var(--text-light);padding:28px;font-style:italic;}
+
+    /* BADGES */
+    .badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11.5px;font-weight:600;}
+    .badge-red{background:#fdedec;color:var(--danger);}
+    .badge-orange{background:#fef5e4;color:var(--warning);}
+    .badge-blue{background:#dceaf7;color:var(--primary);}
+    .badge-gray{background:#f2f3f4;color:var(--text-light);}
+    .badge-green{background:#eafaf1;color:var(--success);}
+
+    /* FORM */
+    .form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
+    .form-row.full{grid-template-columns:1fr;}
+    .form-group{display:flex;flex-direction:column;gap:4px;}
+    .form-group label{font-size:12px;font-weight:600;color:var(--text-light);}
+    .form-group label .req{color:var(--danger);}
+    .inp{border:1.5px solid var(--border);border-radius:7px;padding:7px 11px;font-size:13px;font-family:inherit;outline:none;background:#fff;transition:border .15s;width:100%;}
+    .inp:focus{border-color:var(--primary-light);}
+    textarea.inp{resize:vertical;min-height:72px;}
+    select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath fill='%236b7c93' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;}
+
+    /* MODAL */
+    .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:200;align-items:center;justify-content:center;}
+    .modal-bg.open{display:flex;}
+    .modal{background:#fff;border-radius:12px;width:560px;max-width:96vw;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.22);}
+    .modal-head{padding:15px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,#003087,#0060B6);border-radius:12px 12px 0 0;}
+    .modal-head h3{font-size:14.5px;font-weight:700;color:#fff;}
+    .modal-close{background:rgba(255,255,255,0.15);border:none;color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;}
+    .modal-close:hover{background:rgba(255,255,255,0.3);}
+    .modal-body{padding:20px;overflow-y:auto;flex:1;}
+    .modal-footer{padding:13px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;background:#f8f9fd;border-radius:0 0 12px 12px;}
+
+    /* QUICK SELECT CHIPS */
+    .chip-group{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
+    .chip{padding:4px 11px;border-radius:20px;font-size:12px;border:1.5px solid var(--primary-light);color:var(--primary);background:#fff;cursor:pointer;transition:all .12s;}
+    .chip:hover{background:var(--primary-light);color:#fff;}
+
+    /* SECTION CARD */
+    .section-card{background:#fff;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.07);padding:20px;margin-bottom:20px;}
+    .section-card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid #f0f3fa;}
+    .section-card-title{font-size:14.5px;font-weight:700;color:var(--primary);display:flex;align-items:center;gap:8px;}
+
+    /* INFO BOX */
+    .info-box{background:#dceaf7;border-left:4px solid var(--primary);padding:10px 14px;border-radius:0 8px 8px 0;font-size:12.5px;color:var(--primary);margin-bottom:16px;}
+    .warn-box{background:#fef5e4;border-left:4px solid var(--warning);padding:10px 14px;border-radius:0 8px 8px 0;font-size:12.5px;color:#7a4a00;margin-bottom:16px;}
+
+    /* WIP */
+    .wip{background:#fff;border-radius:10px;padding:40px 24px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.07);}
+    .wip .ic{font-size:36px;margin-bottom:12px;}
+    .wip h3{font-size:15px;font-weight:700;color:var(--primary);margin-bottom:8px;}
+    .wip p{font-size:13px;color:var(--text-light);}
+
+    /* LOGIN MODAL */
+    .login-modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:300;align-items:center;justify-content:center;}
+    .login-modal-bg.open{display:flex;}
+    .login-popup{background:#fff;border-radius:12px;width:360px;box-shadow:0 8px 32px rgba(0,0,0,0.22);}
+    .login-err{background:#fdedec;border-left:3px solid var(--danger);padding:8px 12px;border-radius:0 6px 6px 0;font-size:12.5px;color:var(--danger);margin-bottom:12px;display:none;}
+
+    /* TOAST */
+    #toast{position:fixed;bottom:24px;right:24px;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,0.2);z-index:999;display:none;color:#fff;}
+
+    /* MONTH FILTER */
+    .month-filter{display:flex;align-items:center;gap:10px;background:#fff;border-radius:10px;padding:12px 18px;box-shadow:0 2px 8px rgba(0,0,0,0.07);margin-bottom:18px;}
+    .month-filter label{font-size:12.5px;font-weight:600;color:var(--text-light);}
+
+    /* REPORT PREVIEW */
+    .report-preview{background:#f8f9fd;border:1.5px solid var(--border);border-radius:8px;padding:14px;max-height:220px;overflow-y:auto;font-size:12.5px;margin-bottom:14px;}
+    .report-preview table{width:100%;border-collapse:collapse;font-size:12px;}
+    .report-preview th{background:#dde6f3;color:var(--primary);padding:6px 8px;text-align:left;}
+    .report-preview td{padding:6px 8px;border-bottom:1px solid #eef0f5;}
+    .report-preview tr:last-child td{border-bottom:none;}
+    .section-divider{font-size:11px;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 6px;padding-bottom:4px;border-bottom:1.5px solid var(--border);}
+
+    @media(max-width:768px){
+      .sidebar{transform:translateX(-100%);}
+      .main{margin-left:0;padding:72px 14px 24px;}
+      .topbar{left:0;}
+      .form-row{grid-template-columns:1fr;}
+    }
+  </style>
 </head>
 <body>
-  <script src="assets/db.js"></script>
-  <script src="assets/app.js"></script>
-  <script>HSE.renderPage("pccc-cnch");</script>
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <header class="topbar">
+    <div>
+      <div style="font-size:15px;font-weight:700;">🧯 PCCC & CNCH</div>
+      <div style="font-size:11px;opacity:.75;">Xí nghiệp Dịch vụ Cảng · Vietsovpetro</div>
+    </div>
+    <div class="topbar-right" id="topbarRight"></div>
+  </header>
+
+  <main class="main">
+    <div class="page-title">🧯 PCCC & Chữa cháy và Cứu nạn cứu hộ</div>
+    <div class="page-desc" id="pageDesc"></div>
+
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab('bctd')">🔔 Hệ thống báo cháy tự động</button>
+      <button class="tab-btn" onclick="switchTab('phuongtien')">🚒 Phương tiện CC & CNCH</button>
+    </div>
+
+    <!-- TAB 1: HỆ THỐNG BCTD -->
+    <div class="tab-pane active" id="tab-bctd">
+
+      <!-- ADMIN: QUẢN LÝ THIẾT BỊ -->
+      <div id="adminDeviceSection" style="display:none">
+        <div class="section-card">
+          <div class="section-card-head">
+            <div class="section-card-title">⚙️ Quản lý danh sách hệ thống BCTĐ</div>
+            <button class="btn btn-primary btn-sm" onclick="openDeviceModal()">+ Thêm hệ thống</button>
+          </div>
+          <div class="table-wrap" style="margin-bottom:0">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:40px">#</th>
+                  <th>Tên hệ thống</th>
+                  <th>Vị trí lắp đặt</th>
+                  <th style="width:100px"></th>
+                </tr>
+              </thead>
+              <tbody id="tbodyDevices"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- USER + VIEWER: NHẬP/XEM BÁO LỖI -->
+      <div id="errorLogSection">
+        <div class="section-card">
+          <div class="section-card-head">
+            <div class="section-card-title">📋 Nhật ký báo lỗi hệ thống BCTĐ</div>
+            <button class="btn btn-outline btn-sm" id="btnReport" onclick="openReportModal()" style="display:none">📄 Tạo báo cáo</button>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <div class="month-filter" style="margin-bottom:0;padding:6px 12px;box-shadow:none;border:1.5px solid var(--border);border-radius:8px;">
+                <label>Lọc tháng:</label>
+                <select class="inp" id="filterLogMonth" style="width:80px;padding:4px 8px;font-size:12.5px;" onchange="renderErrorLog()">
+                  <option value="">Tất cả</option>
+                </select>
+                <select class="inp" id="filterLogYear" style="width:90px;padding:4px 8px;font-size:12.5px;" onchange="renderErrorLog()">
+                </select>
+              </div>
+              <button class="btn btn-primary btn-sm" id="btnAddError" onclick="openErrorModal()">+ Nhập báo lỗi</button>
+            </div>
+          </div>
+          <div class="table-wrap" style="margin-bottom:0">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:40px">#</th>
+                  <th>Tháng</th>
+                  <th>Hệ thống</th>
+                  <th>Thiết bị – Vị trí</th>
+                  <th>Loại lỗi</th>
+                  <th>Ngày phát hiện</th>
+                  <th>Biện pháp khắc phục</th>
+                  <th>Người nhập</th>
+                  <th style="width:80px"></th>
+                </tr>
+              </thead>
+              <tbody id="tbodyErrors"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: PHƯƠNG TIỆN CC & CNCH -->
+    <div class="tab-pane" id="tab-phuongtien">
+      <div class="wip">
+        <div class="ic">🚧</div>
+        <h3>Đang xây dựng</h3>
+        <p>Mục <b>Phương tiện CC & CNCH</b> đang được phát triển và sẽ được bổ sung trong phiên bản tiếp theo.</p>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- MODAL THÊM/SỬA THIẾT BỊ (Admin) -->
+<div class="modal-bg" id="deviceModalBg">
+  <div class="modal" style="width:460px">
+    <div class="modal-head">
+      <h3 id="deviceModalTitle">Thêm hệ thống BCTĐ</h3>
+      <button class="modal-close" onclick="closeDeviceModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row full" style="margin-bottom:14px">
+        <div class="form-group">
+          <label>Tên hệ thống <span class="req">*</span></label>
+          <input class="inp" id="dName" placeholder="VD: FG Kho căn cứ Cảng MR-2900, Tủ báo cháy Secutron MR-2200...">
+        </div>
+      </div>
+      <div class="form-row full">
+        <div class="form-group">
+          <label>Vị trí lắp đặt <span class="req">*</span></label>
+          <input class="inp" id="dLocation" placeholder="VD: Kho căn cứ Cảng XNDV số 69 đường 30/4...">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeDeviceModal()">Hủy</button>
+      <button class="btn btn-primary" onclick="saveDevice()">💾 Lưu</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NHẬP BÁO LỖI (User) -->
+<div class="modal-bg" id="errorModalBg">
+  <div class="modal" style="width:580px">
+    <div class="modal-head">
+      <h3 id="errorModalTitle">Nhập báo lỗi hệ thống BCTĐ</h3>
+      <button class="modal-close" onclick="closeErrorModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="noDeviceWarn" class="warn-box" style="display:none">
+        ⚠️ Chưa có hệ thống nào được tạo. Vui lòng liên hệ Admin để thêm hệ thống trước.
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Tháng <span class="req">*</span></label>
+          <select class="inp" id="eMonth" onchange="updateDateRange()"></select>
+        </div>
+        <div class="form-group">
+          <label>Năm <span class="req">*</span></label>
+          <select class="inp" id="eYear" onchange="updateDateRange()"></select>
+        </div>
+      </div>
+      <div class="form-row full" style="margin-bottom:10px">
+        <div class="form-group">
+          <label>Hệ thống <span class="req">*</span></label>
+          <select class="inp" id="eDevice"></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Thiết bị <span class="req">*</span></label>
+          <input class="inp" id="eChildDevice" placeholder="VD: SD123, HD456,...">
+        </div>
+        <div class="form-group">
+          <label>Vị trí thiết bị <span class="req">*</span></label>
+          <input class="inp" id="eDevLocation" placeholder="VD: kho A1, kho H1,...">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Loại lỗi <span class="req">*</span></label>
+          <select class="inp" id="eErrType" onchange="toggleCustomErr()">
+            <option value="Lỗi thiết bị">Lỗi thiết bị</option>
+            <option value="Khác">Khác</option>
+          </select>
+        </div>
+        <div class="form-group" id="customErrGroup" style="display:none">
+          <label>Mô tả lỗi khác <span class="req">*</span></label>
+          <input class="inp" id="eErrCustom" placeholder="Nhập mô tả lỗi...">
+        </div>
+        <div class="form-group" id="detectDateGroup">
+          <label>Ngày phát hiện <span class="req">*</span></label>
+          <input class="inp" type="date" id="eDetectDate">
+        </div>
+      </div>
+      <div class="form-row full">
+        <div class="form-group">
+          <label>Biện pháp khắc phục <span class="req">*</span></label>
+          <div class="chip-group" style="margin-bottom:8px">
+            <span class="chip" onclick="appendBienPhap('Kiểm tra hiện trường')">Kiểm tra hiện trường</span>
+            <span class="chip" onclick="appendBienPhap('Khởi động lại hệ thống')">Khởi động lại hệ thống</span>
+            <span class="chip" onclick="appendBienPhap('Phối hợp với Đội BVVT tiếp tục giám sát hệ thống')">Phối hợp với Đội BVVT giám sát</span>
+          </div>
+          <textarea class="inp" id="eMeasure" placeholder="Nhập biện pháp khắc phục hoặc chọn mẫu nhanh ở trên..." rows="3"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeErrorModal()">Hủy</button>
+      <button class="btn btn-primary" onclick="saveError()">💾 Lưu</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ĐĂNG NHẬP -->
+<div class="login-modal-bg" id="loginModalBg">
+  <div class="login-popup">
+    <div style="padding:16px 20px;background:linear-gradient(135deg,#003087,#0060B6);border-radius:12px 12px 0 0;display:flex;align-items:center;justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:10px">
+        <img src="assets/logo.svg" style="width:38px;height:38px;object-fit:contain">
+        <div style="font-weight:700;font-size:13px;color:#fff">Quản lý HSE · Vietsovpetro</div>
+      </div>
+      <button class="modal-close" onclick="closeLoginModal()">×</button>
+    </div>
+    <div style="padding:20px">
+      <div class="login-err" id="loginErr"></div>
+      <form onsubmit="doLogin(event)">
+        <div class="form-group" style="margin-bottom:12px">
+          <label>Tên đăng nhập</label>
+          <input class="inp" id="loginUser" type="text" autocomplete="username" placeholder="VD: sonlhh.sd">
+        </div>
+        <div class="form-group" style="margin-bottom:14px">
+          <label>Mật khẩu</label>
+          <input class="inp" id="loginPass" type="password" autocomplete="current-password">
+        </div>
+        <button class="btn btn-primary" type="submit" style="width:100%;justify-content:center">Đăng nhập</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- MODAL TẠO BÁO CÁO -->
+<div class="modal-bg" id="reportModalBg">
+  <div class="modal" style="width:660px">
+    <div class="modal-head">
+      <h3>📄 Tạo báo cáo tình trạng HTBCTĐ</h3>
+      <button class="modal-close" onclick="closeReportModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Chọn tháng báo cáo <span class="req">*</span></label>
+          <select class="inp" id="rMonth" onchange="previewReportData()"></select>
+        </div>
+        <div class="form-group">
+          <label>Năm</label>
+          <select class="inp" id="rYear" onchange="previewReportData()"></select>
+        </div>
+      </div>
+
+      <div class="section-divider">Dữ liệu thiết bị báo lỗi (tự động từ nhật ký)</div>
+      <div class="report-preview" id="reportPreview"></div>
+
+      <div class="section-divider">Thông tin bổ sung (Admin nhập)</div>
+      <div class="form-row full" style="margin-bottom:10px">
+        <div class="form-group">
+          <label>Thiết bị mới lắp đặt / cải tạo chưa đưa vào hoạt động</label>
+          <textarea class="inp" id="rNewDevices" rows="2" placeholder="Nếu không có, để trống"></textarea>
+        </div>
+      </div>
+      <div class="form-row full" style="margin-bottom:10px">
+        <div class="form-group">
+          <label>Công trình chưa được lắp đặt hệ thống báo cháy tự động</label>
+          <textarea class="inp" id="rNoSystem" rows="2" placeholder="Nếu không có, để trống"></textarea>
+        </div>
+      </div>
+      <div class="form-row full">
+        <div class="form-group">
+          <label>Người thực hiện (tên người xuất báo cáo) <span class="req">*</span></label>
+          <input class="inp" id="rPreparedBy" placeholder="Họ và tên">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeReportModal()">Hủy</button>
+      <button class="btn btn-primary" onclick="generateReport()" id="btnGenReport">
+        📥 Xuất báo cáo .docx
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/db.js"></script>
+<script>
+/* ================================================================
+   PCCC & CNCH – Hệ thống báo cháy tự động
+   ================================================================ */
+
+var MENU=[
+  {slug:"tong-quan",title:"Tổng quan",icon:"📊"},
+  {slug:"pccc-cnch",title:"PCCC & CNCH",icon:"🧯"},
+  {slug:"cap-phat-bhld",title:"Cấp phát BHLĐ",icon:"🦺"},
+  {slug:"huan-luyen-dao-tao",title:"Huấn luyện - Đào tạo",icon:"🎓"},
+  {slug:"ung-pho-khan-cap",title:"Ứng phó khẩn cấp",icon:"🚨"},
+  {slug:"jsa",title:"JSA",icon:"📝"},
+  {slug:"sop",title:"SOP",icon:"📑"},
+  {slug:"kiem-tra-cac-cap",title:"Kiểm tra các cấp",icon:"🔍"},
+  {slug:"quan-ly-thiet-bi",title:"Quản lý thiết bị",icon:"⚙️"},
+  {slug:"kham-suc-khoe",title:"Khám sức khoẻ",icon:"🩺"},
+  {slug:"an-toan-dien",title:"An toàn điện",icon:"⚡"},
+  {slug:"an-toan-giao-thong",title:"An toàn giao thông",icon:"🚧"},
+  {slug:"moi-truong",title:"Môi trường",icon:"🌿"},
+  {slug:"quan-ly-hoa-chat",title:"Quản lý hóa chất",icon:"🧪"},
+  {slug:"quan-ly-nha-thau",title:"Quản lý nhà thầu",icon:"👷"},
+  {slug:"ke-hoach",title:"Kế hoạch",icon:"🗓️"},
+  {slug:"bao-cao",title:"Báo cáo",icon:"📈"},
+  {slug:"quan-tri-he-thong",title:"Quản trị hệ thống",icon:"🛡️",adminOnly:true}
+];
+
+var K_USERS   = "hse_users";
+var K_SESS    = "hse_session";
+var K_DEVICES = "hse_pccc_devices";
+var K_ERRORS  = "hse_pccc_errors";
+
+function load(k,d){try{var v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}}
+function save(k,v){localStorage.setItem(k,JSON.stringify(v));}
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+function fmtDate(s){if(!s)return"—";var p=s.split("-");return p.length===3?p[2]+"/"+p[1]+"/"+p[0]:s;}
+
+/* ---- AUTH ---- */
+function seedUsers(){
+  var u=load(K_USERS,null);
+  if(!u||!u.length){
+    save(K_USERS,[{id:"1",username:"admin",password:"admin123",fullname:"Quản trị viên",
+      role:"admin",perms:MENU.map(function(m){return m.slug;}),active:true}]);
+  }
+}
+function getUsers(){return load(K_USERS,[]);}
+function findUser(un){var us=getUsers();for(var i=0;i<us.length;i++)if(us[i].username===un)return us[i];return null;}
+function currentUser(){var un=load(K_SESS,null);return un?findUser(un):null;}
+function isAdmin(u){return u&&u.role==="admin";}
+function canEdit(u){return u&&u.role!=="viewer";}
+function canView(u){
+  if(!u)return true;
+  if(u.role==="admin")return true;
+  return (u.perms||[]).indexOf("pccc-cnch")>=0;
+}
+
+/* ---- SIDEBAR ---- */
+function buildSidebar(){
+  var u=currentUser();
+  var html='<div class="sidebar-head"><div class="logo"><img src="assets/logo.svg" alt="VSP"></div>'+
+    '<div><div class="t1">Quản lý HSE</div><div class="t2">XN Dịch vụ Cảng & Cung ứng VTTB</div><div class="t2">Vietsovpetro</div></div></div><nav style="flex:1">';
+  MENU.forEach(function(m){
+    if(m.adminOnly&&(!u||u.role!=="admin"))return;
+    var active=m.slug==="pccc-cnch"?" active":"";
+    html+='<a class="nav-item'+active+'" href="'+m.slug+'.html">'+m.icon+' '+m.title+'</a>';
+  });
+  html+='</nav>';
+  document.getElementById("sidebar").innerHTML=html;
+}
+
+/* ---- TOPBAR ---- */
+function buildTopbar(){
+  var u=currentUser();
+  var right=document.getElementById("topbarRight");
+  if(u){
+    var rc=u.role==="admin"?"#C8102E":u.role==="viewer"?"#6b7c93":"#1a7a3c";
+    right.innerHTML='<div class="user-badge"><span>👤</span><span>'+esc(u.fullname||u.username)+'</span>'+
+      '<span style="background:'+rc+';color:#fff;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:700;margin-left:4px">'+
+      (u.role==="admin"?"Admin":u.role==="viewer"?"Viewer":"User")+'</span></div>'+
+      '<button class="btn-login" onclick="doLogout()">Đăng xuất</button>';
+  } else {
+    right.innerHTML='<button class="btn-login" onclick="openLoginModal()">🔐 Đăng nhập</button>';
+  }
+  var u2=currentUser();
+  var desc=document.getElementById("pageDesc");
+  if(!u2) desc.innerHTML='<span style="color:var(--text-light)">Bạn đang xem ở chế độ khách. </span><a href="#" onclick="openLoginModal();return false;" style="color:var(--primary);font-weight:600">Đăng nhập</a><span style="color:var(--text-light)"> để thao tác.</span>';
+  else if(canEdit(u2)) desc.textContent='Bạn có quyền thao tác trên trang này.';
+  else desc.textContent='Bạn chỉ có quyền xem trang này.';
+}
+
+/* ---- TABS ---- */
+function switchTab(tab){
+  document.querySelectorAll('.tab-btn').forEach(function(b,i){
+    b.classList.toggle('active',(tab==='bctd'?i===0:i===1));
+  });
+  document.getElementById('tab-bctd').classList.toggle('active',tab==='bctd');
+  document.getElementById('tab-phuongtien').classList.toggle('active',tab==='phuongtien');
+}
+
+/* ---- DATA ---- */
+function getDevices(){return load(K_DEVICES,[]);}
+function getErrors(){return load(K_ERRORS,[]);}
+
+function saveDevices(data){
+  if(typeof DB!=="undefined"&&DB.isReady()){
+    DB.cachedSave(K_DEVICES,"pccc_devices",data);
+  } else { save(K_DEVICES,data); }
+}
+function saveErrors(data){
+  if(typeof DB!=="undefined"&&DB.isReady()){
+    DB.cachedSave(K_ERRORS,"pccc_errors",data);
+  } else { save(K_ERRORS,data); }
+}
+
+/* ---- RENDER DEVICES (Admin) ---- */
+function renderDevices(){
+  var u=currentUser();
+  var adm=isAdmin(u);
+  var items=getDevices();
+  var tb=document.getElementById("tbodyDevices");
+  if(!items.length){
+    tb.innerHTML='<tr class="empty-row"><td colspan="4">Chưa có hệ thống nào. Nhấn <b>+ Thêm hệ thống</b> để bắt đầu.</td></tr>';
+    return;
+  }
+  tb.innerHTML=items.map(function(x,i){
+    var btns=adm?
+      '<button class="btn btn-edit btn-sm" onclick="openDeviceModal(\''+x.id+'\')">✏️</button> '+
+      '<button class="btn btn-danger btn-sm" onclick="deleteDevice(\''+x.id+'\')">🗑️</button>':'';
+    return '<tr><td style="color:var(--text-light);font-size:12px">'+(i+1)+'</td>'+
+      '<td style="font-weight:600">'+esc(x.name)+'</td>'+
+      '<td>'+esc(x.location)+'</td>'+
+      '<td style="white-space:nowrap">'+btns+'</td></tr>';
+  }).join("");
+}
+
+/* ---- RENDER ERROR LOG ---- */
+function renderErrorLog(){
+  var u=currentUser();
+  var editable=u&&canEdit(u);
+  var items=getErrors();
+  var fm=document.getElementById("filterLogMonth").value;
+  var fy=document.getElementById("filterLogYear").value;
+  if(fm) items=items.filter(function(x){return String(x.month)===fm;});
+  if(fy) items=items.filter(function(x){return String(x.year)===fy;});
+  var tb=document.getElementById("tbodyErrors");
+  if(!items.length){
+    tb.innerHTML='<tr class="empty-row"><td colspan="9">Chưa có bản ghi báo lỗi nào'+(fm||fy?' trong khoảng thời gian đã chọn':'')+'. '+(editable?'Nhấn <b>+ Nhập báo lỗi</b> để thêm.':'')+'</td></tr>';
+    return;
+  }
+  var devices=getDevices();
+  tb.innerHTML=items.map(function(x,i){
+    var dev=devices.find(function(d){return d.id===x.deviceId;})||{};
+    var errLabel=x.errType==="Khác"?(x.errCustom||"Khác"):"Báo lỗi"+(x.childDevice?" "+x.childDevice:"")+(x.devLocation?" – "+x.devLocation:"");
+    var btns=editable?
+      '<button class="btn btn-edit btn-sm" onclick="openErrorModal(\''+x.id+'\')">✏️</button> '+
+      '<button class="btn btn-danger btn-sm" onclick="deleteError(\''+x.id+'\')">🗑️</button>':'';
+    var parentLabel=esc(dev.name||x.deviceId);
+    var childLabel=esc(x.childDevice||"—")+(x.devLocation?' – <span style="color:var(--text-light)">'+esc(x.devLocation)+'</span>':"");
+    return '<tr>'+
+      '<td style="color:var(--text-light);font-size:12px">'+(i+1)+'</td>'+
+      '<td><span class="badge badge-blue">T'+x.month+'/'+x.year+'</span></td>'+
+      '<td style="font-weight:600">'+parentLabel+'</td>'+
+      '<td style="font-size:12.5px">'+childLabel+'</td>'+
+      '<td><span class="badge '+(x.errType==="Khác"?"badge-orange":"badge-red")+'">'+esc(errLabel)+'</span></td>'+
+      '<td style="white-space:nowrap">'+fmtDate(x.detectDate)+'</td>'+
+      '<td style="max-width:220px;font-size:12.5px">'+esc(x.measure||"—")+'</td>'+
+      '<td style="font-size:12px;color:var(--text-light)">'+esc(x.createdBy||"—")+'</td>'+
+      '<td style="white-space:nowrap">'+btns+'</td></tr>';
+  }).join("");
+}
+
+/* ---- POPULATE MONTH FILTER ---- */
+function populateMonthFilter(){
+  var now=new Date();
+  var selM=document.getElementById("filterLogMonth");
+  var selY=document.getElementById("filterLogYear");
+  var curM=selM.value, curY=selY.value;
+  selM.innerHTML='<option value="">Tất cả tháng</option>'+
+    [1,2,3,4,5,6,7,8,9,10,11,12].map(function(m){
+      return '<option value="'+m+'"'+(String(m)===curM?' selected':'')+'>Tháng '+m+'</option>';
+    }).join("");
+  var years=[];
+  var errs=getErrors();
+  errs.forEach(function(x){if(x.year&&years.indexOf(x.year)<0)years.push(x.year);});
+  if(years.indexOf(now.getFullYear())<0)years.push(now.getFullYear());
+  years.sort(function(a,b){return b-a;});
+  selY.innerHTML=years.map(function(y){
+    return '<option value="'+y+'"'+(String(y)===(curY||String(now.getFullYear()))?' selected':'')+'>'+y+'</option>';
+  }).join("");
+}
+
+/* ================================================================
+   MODAL THIẾT BỊ (Admin)
+   ================================================================ */
+var _editDeviceId=null;
+function openDeviceModal(editId){
+  _editDeviceId=editId||null;
+  var existing=editId?getDevices().find(function(x){return x.id===editId;}):null;
+  document.getElementById("deviceModalTitle").textContent=editId?"Chỉnh sửa hệ thống":"Thêm hệ thống BCTĐ";
+  document.getElementById("dName").value=existing?existing.name:"";
+  document.getElementById("dLocation").value=existing?existing.location:"";
+  document.getElementById("deviceModalBg").classList.add("open");
+  setTimeout(function(){document.getElementById("dName").focus();},80);
+}
+function closeDeviceModal(){document.getElementById("deviceModalBg").classList.remove("open");}
+function saveDevice(){
+  var name=(document.getElementById("dName").value||"").trim();
+  var location=(document.getElementById("dLocation").value||"").trim();
+  if(!name){showToast("⚠️ Vui lòng nhập tên hệ thống","warning");return;}
+  if(!location){showToast("⚠️ Vui lòng nhập vị trí lắp đặt","warning");return;}
+  var data=getDevices();
+  if(_editDeviceId){
+    var idx=data.findIndex(function(x){return x.id===_editDeviceId;});
+    if(idx>=0)data[idx]=Object.assign(data[idx],{name:name,location:location});
+  } else {
+    data.push({id:uid(),name:name,location:location,createdAt:new Date().toISOString()});
+  }
+  saveDevices(data);
+  closeDeviceModal();
+  renderDevices();
+  populateDeviceSelect();
+  showToast("✅ Đã lưu hệ thống","success");
+}
+function deleteDevice(id){
+  if(!confirm("Xóa hệ thống này? Các bản ghi báo lỗi liên quan vẫn được giữ lại."))return;
+  saveDevices(getDevices().filter(function(x){return x.id!==id;}));
+  renderDevices();
+  populateDeviceSelect();
+  showToast("🗑️ Đã xóa thiết bị","danger");
+}
+
+/* ================================================================
+   MODAL NHẬP BÁO LỖI (User)
+   ================================================================ */
+var _editErrorId=null;
+function openErrorModal(editId){
+  _editErrorId=editId||null;
+  var devices=getDevices();
+  var warn=document.getElementById("noDeviceWarn");
+  warn.style.display=devices.length?"none":"block";
+  populateDeviceSelect();
+  populateYearMonthSelect();
+  var existing=editId?getErrors().find(function(x){return x.id===editId;}):null;
+  document.getElementById("errorModalTitle").textContent=editId?"Chỉnh sửa bản ghi báo lỗi":"Nhập báo lỗi hệ thống BCTĐ";
+  if(existing){
+    document.getElementById("eMonth").value=existing.month;
+    document.getElementById("eYear").value=existing.year;
+    document.getElementById("eDevice").value=existing.deviceId;
+    document.getElementById("eChildDevice").value=existing.childDevice||"";
+    document.getElementById("eDevLocation").value=existing.devLocation||"";
+    document.getElementById("eErrType").value=existing.errType;
+    document.getElementById("eErrCustom").value=existing.errCustom||"";
+    document.getElementById("eDetectDate").value=existing.detectDate||"";
+    document.getElementById("eMeasure").value=existing.measure||"";
+    toggleCustomErr();
+    updateDateRange();
+  } else {
+    var now=new Date();
+    document.getElementById("eMonth").value=now.getMonth()+1;
+    document.getElementById("eYear").value=now.getFullYear();
+    document.getElementById("eChildDevice").value="";
+    document.getElementById("eDevLocation").value="";
+    document.getElementById("eErrType").value="Lỗi thiết bị";
+    document.getElementById("eErrCustom").value="";
+    document.getElementById("eDetectDate").value="";
+    document.getElementById("eMeasure").value="";
+    toggleCustomErr();
+    updateDateRange();
+  }
+  document.getElementById("errorModalBg").classList.add("open");
+}
+function closeErrorModal(){document.getElementById("errorModalBg").classList.remove("open");}
+
+function populateDeviceSelect(){
+  var devices=getDevices();
+  var sel=document.getElementById("eDevice");
+  var cur=sel.value;
+  sel.innerHTML=devices.length
+    ?devices.map(function(d){return'<option value="'+d.id+'"'+(d.id===cur?' selected':'')+'>'+esc(d.name)+' — '+esc(d.location)+'</option>';}).join("")
+    :'<option value="">— Chưa có hệ thống —</option>';
+}
+
+function populateYearMonthSelect(){
+  var now=new Date();
+  var selM=document.getElementById("eMonth");
+  var selY=document.getElementById("eYear");
+  selM.innerHTML=[1,2,3,4,5,6,7,8,9,10,11,12].map(function(m){
+    return'<option value="'+m+'">Tháng '+m+'</option>';
+  }).join("");
+  var years=[];
+  for(var y=now.getFullYear()-2;y<=now.getFullYear()+1;y++)years.push(y);
+  selY.innerHTML=years.map(function(y){
+    return'<option value="'+y+'"'+(y===now.getFullYear()?' selected':'')+'>'+y+'</option>';
+  }).join("");
+}
+
+function updateDateRange(){
+  var m=parseInt(document.getElementById("eMonth").value)||1;
+  var y=parseInt(document.getElementById("eYear").value)||(new Date().getFullYear());
+  var firstDay=y+"-"+String(m).padStart(2,"0")+"-01";
+  var lastDay=new Date(y,m,0).getDate();
+  var lastDayStr=y+"-"+String(m).padStart(2,"0")+"-"+String(lastDay).padStart(2,"0");
+  var inp=document.getElementById("eDetectDate");
+  inp.min=firstDay;
+  inp.max=lastDayStr;
+  // Reset nếu ngày hiện tại nằm ngoài tháng
+  if(inp.value&&(inp.value<firstDay||inp.value>lastDayStr)) inp.value="";
+}
+
+function toggleCustomErr(){
+  var v=document.getElementById("eErrType").value;
+  var cg=document.getElementById("customErrGroup");
+  var dg=document.getElementById("detectDateGroup");
+  cg.style.display=v==="Khác"?"block":"none";
+  // Adjust grid: nếu hiện customErrGroup thì detectDate xuống dòng mới
+  cg.parentElement.style.gridTemplateColumns=v==="Khác"?"1fr 1fr":"1fr 1fr";
+}
+
+function appendBienPhap(text){
+  var ta=document.getElementById("eMeasure");
+  var cur=(ta.value||"").trim();
+  ta.value=cur?(cur+". "+text):text;
+  ta.focus();
+}
+
+function saveError(){
+  var month=parseInt(document.getElementById("eMonth").value);
+  var year=parseInt(document.getElementById("eYear").value);
+  var deviceId=document.getElementById("eDevice").value;
+  var childDevice=(document.getElementById("eChildDevice").value||"").trim();
+  var devLocation=(document.getElementById("eDevLocation").value||"").trim();
+  var errType=document.getElementById("eErrType").value;
+  var errCustom=document.getElementById("eErrCustom").value.trim();
+  var detectDate=document.getElementById("eDetectDate").value;
+  var measure=(document.getElementById("eMeasure").value||"").trim();
+  var u=currentUser();
+
+  if(!deviceId){showToast("⚠️ Vui lòng chọn hệ thống","warning");return;}
+  if(!childDevice){showToast("⚠️ Vui lòng nhập tên thiết bị","warning");return;}
+  if(!devLocation){showToast("⚠️ Vui lòng nhập vị trí thiết bị","warning");return;}
+  if(errType==="Khác"&&!errCustom){showToast("⚠️ Vui lòng nhập mô tả lỗi","warning");return;}
+  if(!detectDate){showToast("⚠️ Vui lòng chọn ngày phát hiện","warning");return;}
+  if(!measure){showToast("⚠️ Vui lòng nhập biện pháp khắc phục","warning");return;}
+
+  var item={
+    id:_editErrorId||uid(),
+    month:month, year:year,
+    deviceId:deviceId,
+    childDevice:childDevice,
+    devLocation:devLocation,
+    errType:errType,
+    errCustom:errType==="Khác"?errCustom:"",
+    detectDate:detectDate,
+    measure:measure,
+    createdBy:u?(u.fullname||u.username):"Khách",
+    createdAt:new Date().toISOString()
+  };
+  var data=getErrors();
+  if(_editErrorId){
+    var idx=data.findIndex(function(x){return x.id===_editErrorId;});
+    if(idx>=0)data[idx]=item; else data.push(item);
+  } else { data.push(item); }
+  saveErrors(data);
+  populateMonthFilter();
+  renderErrorLog();
+  closeErrorModal();
+  showToast("✅ Đã lưu bản ghi báo lỗi","success");
+}
+
+function deleteError(id){
+  if(!confirm("Xóa bản ghi báo lỗi này?"))return;
+  saveErrors(getErrors().filter(function(x){return x.id!==id;}));
+  populateMonthFilter();
+  renderErrorLog();
+  showToast("🗑️ Đã xóa","danger");
+}
+
+/* ---- SETUP UI BASED ON ROLE ---- */
+function setupRoleUI(){
+  var u=currentUser();
+  var adm=isAdmin(u);
+  var editable=u&&canEdit(u);
+  // Admin: hiện section quản lý thiết bị + nút tạo báo cáo
+  document.getElementById("adminDeviceSection").style.display=adm?"block":"none";
+  var btnR=document.getElementById("btnReport");
+  if(btnR) btnR.style.display=adm?"":"none";
+  // Viewer/guest: ẩn nút nhập báo lỗi
+  var btn=document.getElementById("btnAddError");
+  if(btn) btn.style.display=editable?"":"none";
+}
+
+/* ---- LOGIN ---- */
+function openLoginModal(){document.getElementById("loginModalBg").classList.add("open");setTimeout(function(){document.getElementById("loginUser").focus();},80);}
+function closeLoginModal(){document.getElementById("loginModalBg").classList.remove("open");}
+var PW_SALT_LOCAL="vsp_hse_2024";
+function hashPwLocal(pw){
+  var data=new TextEncoder().encode(PW_SALT_LOCAL+pw);
+  return crypto.subtle.digest("SHA-256",data).then(function(buf){
+    return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,"0");}).join("");
+  });
+}
+function doLogin(e){
+  e.preventDefault();
+  var un=document.getElementById("loginUser").value.trim();
+  var pw=document.getElementById("loginPass").value;
+  var u=findUser(un);
+  var err=document.getElementById("loginErr");
+  if(!u){err.textContent="Tài khoản không tồn tại.";err.style.display="block";return;}
+  if(u.pendingApproval&&u.active===false){err.textContent="⏳ Tài khoản đang chờ Admin phê duyệt.";err.style.display="block";return;}
+  if(u.active===false){err.textContent="🔒 Tài khoản đã bị khoá.";err.style.display="block";return;}
+  var btn=e.target.querySelector("button[type=submit]");
+  if(btn){btn.disabled=true;btn.textContent="Đang kiểm tra...";}
+  hashPwLocal(pw).then(function(hashed){
+    var isOk=(/^[0-9a-f]{64}$/.test(u.password||""))?(u.password===hashed):(u.password===pw);
+    if(!isOk){
+      if(btn){btn.disabled=false;btn.textContent="Đăng nhập";}
+      err.textContent="Sai mật khẩu.";err.style.display="block";return;
+    }
+    if(!(/^[0-9a-f]{64}$/.test(u.password||""))){
+      var users=getUsers();
+      for(var i=0;i<users.length;i++){if(users[i].username===un){users[i].password=hashed;break;}}
+      var seen={},deduped=[];users.forEach(function(x){if(x.username&&!seen[x.username]){seen[x.username]=true;deduped.push(x);}});
+      save(K_USERS,deduped);
+    }
+    save(K_SESS,u.username);
+    location.reload();
+  });
+}
+function doLogout(){localStorage.removeItem(K_SESS);location.reload();}
+
+document.getElementById("loginModalBg").addEventListener("click",function(e){if(e.target===this)closeLoginModal();});
+document.getElementById("deviceModalBg").addEventListener("click",function(e){if(e.target===this)closeDeviceModal();});
+document.getElementById("errorModalBg").addEventListener("click",function(e){if(e.target===this)closeErrorModal();});
+
+/* ---- TOAST ---- */
+var _tt;
+function showToast(msg,type){
+  var t=document.getElementById("toast");
+  var c={success:"#1a7a3c",warning:"#e68900",danger:"#c0392b",info:"#0060B6"};
+  t.style.background=c[type]||c.info;
+  t.textContent=msg;t.style.display="block";t.style.opacity="1";
+  clearTimeout(_tt);
+  _tt=setTimeout(function(){t.style.opacity="0";setTimeout(function(){t.style.display="none";},300);},2800);
+}
+
+/* ================================================================
+   BÁO CÁO – MODAL + GENERATE DOCX
+   ================================================================ */
+document.getElementById("reportModalBg").addEventListener("click",function(e){if(e.target===this)closeReportModal();});
+
+function openReportModal(){
+  populateReportSelects();
+  previewReportData();
+  // Pre-fill người thực hiện từ user đang đăng nhập
+  var u=currentUser();
+  document.getElementById("rPreparedBy").value=u?(u.fullname||u.username):"";
+  document.getElementById("rNewDevices").value="";
+  document.getElementById("rNoSystem").value="";
+  document.getElementById("reportModalBg").classList.add("open");
+}
+function closeReportModal(){ document.getElementById("reportModalBg").classList.remove("open"); }
+
+function populateReportSelects(){
+  var now=new Date();
+  var selM=document.getElementById("rMonth");
+  var selY=document.getElementById("rYear");
+  selM.innerHTML=[1,2,3,4,5,6,7,8,9,10,11,12].map(function(m){
+    return'<option value="'+m+'"'+(m===(now.getMonth()+1)?' selected':'')+'>Tháng '+m+'</option>';
+  }).join("");
+  var years=[];
+  for(var y=now.getFullYear()-2;y<=now.getFullYear();y++) years.push(y);
+  selY.innerHTML=years.map(function(y){
+    return'<option value="'+y+'"'+(y===now.getFullYear()?' selected':'')+'>'+y+'</option>';
+  }).join("");
+}
+
+function previewReportData(){
+  var m=parseInt(document.getElementById("rMonth").value);
+  var y=parseInt(document.getElementById("rYear").value);
+  var errors=getErrors().filter(function(e){return e.month===m&&e.year===y;});
+  var devices=getDevices();
+  var prev=document.getElementById("reportPreview");
+  if(!errors.length){
+    prev.innerHTML='<div style="color:var(--text-light);font-style:italic;text-align:center;padding:10px">Không có bản ghi báo lỗi trong Tháng '+m+'/'+y+'</div>';
+    return;
+  }
+  var rows=errors.map(function(e,i){
+    var dev=devices.find(function(d){return d.id===e.deviceId;})||{};
+    var errLabel=e.errType==="Khác"?(e.errCustom||"Khác"):"Báo lỗi"+(e.childDevice?" "+e.childDevice:"")+(e.devLocation?" – "+e.devLocation:"");
+    var dd=e.detectDate?e.detectDate.split("-").reverse().join("/"):"";
+    return '<tr><td style="text-align:center">'+(i+1)+'</td>'+
+      '<td>'+esc(dev.name||"")+'</td>'+
+      '<td>'+esc(dev.location||"")+'</td>'+
+      '<td>'+esc(errLabel)+'</td>'+
+      '<td style="white-space:nowrap">'+esc(dd)+'</td>'+
+      '<td>'+esc(e.measure||"")+'</td></tr>';
+  }).join("");
+  prev.innerHTML='<table><thead><tr>'+
+    '<th>#</th><th>Hệ thống</th><th>Vị trí</th><th>Tình trạng</th><th>Ngày PH</th><th>Biện pháp KP</th>'+
+    '</tr></thead><tbody>'+rows+'</tbody></table>';
+}
+
+/* ---- GENERATE DOCX ---- */
+function generateReport(){
+  var m=parseInt(document.getElementById("rMonth").value);
+  var y=parseInt(document.getElementById("rYear").value);
+  var preparedBy=(document.getElementById("rPreparedBy").value||"").trim();
+  if(!preparedBy){showToast("⚠️ Vui lòng nhập tên người thực hiện","warning");return;}
+
+  var errors=getErrors().filter(function(e){return e.month===m&&e.year===y;});
+  var devices=getDevices();
+  var newDevices=(document.getElementById("rNewDevices").value||"").trim();
+  var noSystem=(document.getElementById("rNoSystem").value||"").trim();
+
+  var btn=document.getElementById("btnGenReport");
+  btn.disabled=true; btn.textContent="⏳ Đang tạo...";
+
+  // Lazy-load docx library từ CDN
+  if(!window.docxLoaded){
+    var s=document.createElement("script");
+    s.src="assets/docx.iife.js";
+    s.onload=function(){
+      // IIFE build khai báo `var docx` ở global scope
+      if(typeof docx==="undefined"){
+        showToast("❌ Thư viện tải nhưng không khởi tạo được. Thử lại.","danger");
+        btn.disabled=false; btn.textContent="📥 Xuất báo cáo .docx";
+        return;
+      }
+      window.docxLoaded=true;
+      _buildAndDownload(m,y,errors,devices,newDevices,noSystem,preparedBy,btn);
+    };
+    s.onerror=function(){
+      showToast("❌ Không tải được thư viện. Kiểm tra kết nối mạng.","danger");
+      btn.disabled=false; btn.textContent="📥 Xuất báo cáo .docx";
+    };
+    document.head.appendChild(s);
+  } else {
+    _buildAndDownload(m,y,errors,devices,newDevices,noSystem,preparedBy,btn);
+  }
+}
+
+function _buildAndDownload(m,y,errors,devices,newDevices,noSystem,preparedBy,btn){
+  // Fetch logo image trước, sau đó build docx
+  fetch("assets/vsp_logo_bctd.jpeg")
+    .then(function(r){return r.arrayBuffer();})
+    .catch(function(){return null;})
+    .then(function(logoBuffer){
+      _doBuild(m,y,errors,devices,newDevices,noSystem,preparedBy,btn,logoBuffer);
+    });
+}
+
+function _doBuild(m,y,errors,devices,newDevices,noSystem,preparedBy,btn,logoBuffer){
+  try {
+    /* jshint ignore:start */
+    var D=window.docx||docx; /* eslint-disable-line no-undef */
+    /* jshint ignore:end */
+    if(!D||!D.BorderStyle){ throw new Error("Thư viện docx chưa sẵn sàng"); }
+
+    var TW=9355;
+    var COLS=[564,1705,1249,1556,1945,2336];
+    // Chiều rộng header table (logo + text) = toàn trang kể cả margin trái
+    var HDR_LOGO_W=2010; var HDR_TEXT_W=7498; // ≈ 9508 tổng
+
+    function fmtD(s){ if(!s)return""; var p=s.split("-"); return p.length===3?p[2]+"/"+p[1]+"/"+p[0]:s; }
+
+    var bdr={style:D.BorderStyle.SINGLE,size:4,color:"000000"};
+    var allB={top:bdr,bottom:bdr,left:bdr,right:bdr};
+    var thinB={style:D.BorderStyle.SINGLE,size:2,color:"000000"};
+    var thinAllB={top:thinB,bottom:thinB,left:thinB,right:thinB};
+    var noB={top:{style:D.BorderStyle.NONE},bottom:{style:D.BorderStyle.NONE},left:{style:D.BorderStyle.NONE},right:{style:D.BorderStyle.NONE}};
+
+    function pr(children,opts){
+      opts=opts||{};
+      return new D.Paragraph({children:children,alignment:opts.align||D.AlignmentType.LEFT,
+        spacing:{before:opts.before||0,after:opts.after===undefined?80:opts.after}});
+    }
+    function run(text,opts){
+      opts=opts||{};
+      return new D.TextRun({text:text,font:"Times New Roman",size:opts.size||24,
+        bold:opts.bold||false,italics:opts.italic||false,color:opts.color||"000000",
+        underline:opts.underline?{}:undefined});
+    }
+    function hCell(text,w){
+      return new D.TableCell({borders:allB,width:{size:w,type:D.WidthType.DXA},margins:{top:80,bottom:80,left:80,right:80},
+        verticalAlign:D.VerticalAlign.CENTER,shading:{fill:"003087",type:D.ShadingType.CLEAR},
+        children:[new D.Paragraph({alignment:D.AlignmentType.CENTER,
+          children:[new D.TextRun({text:text,bold:true,color:"FFFFFF",size:20,font:"Times New Roman"})]
+        })]
+      });
+    }
+    function dCell(text,w,center){
+      return new D.TableCell({borders:allB,width:{size:w,type:D.WidthType.DXA},margins:{top:60,bottom:60,left:80,right:80},
+        verticalAlign:D.VerticalAlign.CENTER,
+        children:[new D.Paragraph({alignment:center?D.AlignmentType.CENTER:D.AlignmentType.LEFT,
+          children:[new D.TextRun({text:String(text||""),size:20,font:"Times New Roman"})]
+        })]
+      });
+    }
+
+    /* ---- HEADER TABLE: Logo | QUY ĐỊNH text ---- */
+    var logoCell;
+    if(logoBuffer){
+      logoCell=new D.TableCell({
+        borders:thinAllB,width:{size:HDR_LOGO_W,type:D.WidthType.DXA},
+        margins:{top:60,bottom:60,left:60,right:60},
+        verticalAlign:D.VerticalAlign.CENTER,
+        children:[new D.Paragraph({
+          alignment:D.AlignmentType.CENTER,
+          children:[new D.ImageRun({
+            type:"jpeg",data:logoBuffer,
+            transformation:{width:110,height:90},
+            altText:{title:"VSP Logo",description:"Vietsovpetro",name:"logo"}
+          })]
+        })]
+      });
+    } else {
+      logoCell=new D.TableCell({
+        borders:thinAllB,width:{size:HDR_LOGO_W,type:D.WidthType.DXA},
+        margins:{top:60,bottom:60,left:60,right:60},
+        children:[new D.Paragraph({alignment:D.AlignmentType.CENTER,
+          children:[new D.TextRun({text:"VIETSOVPETRO",bold:true,size:18,font:"Times New Roman"})]
+        })]
+      });
+    }
+    var quyDinhLines=[
+      "QUY ĐỊNH",
+      "PHỐI HỢP GIỮA CÁC ĐƠN VỊ VỀ VIỆC VẬN HÀNH, BẢO DƯỠNG, SỬA CHỮA HỆ THỐNG",
+      "BÁO CHÁY TỰ ĐỘNG TRÊN CÁC CÔNG TRÌNH BỜ TRONG LIÊN DOANH VIỆT – NGA VIETSOVPETRO",
+      "ПОЛОЖЕНИЕ О ВЗАИМОДЕЙСТВИИ ПОДРАЗДЕЛЕНИЙ СП ПРИ ВЫПОЛНЕНИИ РАБОТ ПО",
+      "ЭКСПЛУАТАЦИИ, ТЕХНИЧЕСКОМУ ОБСЛУЖИВАНИЮ И РЕМОНТУ СИСТЕМ АВТОМАТИЧЕСКОЙ",
+      "ПОЖАРНОЙ СИГНАЛИЗАЦИИ НА БЕРЕГОВЫХ ОБЪЕКТАХ СП \"ВЬЕТСОВПЕТРО\""
+    ];
+    var textCell=new D.TableCell({
+      borders:thinAllB,width:{size:HDR_TEXT_W,type:D.WidthType.DXA},
+      margins:{top:80,bottom:80,left:100,right:100},
+      verticalAlign:D.VerticalAlign.CENTER,
+      children:quyDinhLines.map(function(line,i){
+        return new D.Paragraph({
+          alignment:D.AlignmentType.CENTER,
+          spacing:{before:0,after:i===0?40:0},
+          children:[new D.TextRun({text:line,bold:true,size:i===0?20:17,font:"Times New Roman"})]
+        });
+      })
+    });
+    var headerTable=new D.Table({
+      width:{size:HDR_LOGO_W+HDR_TEXT_W,type:D.WidthType.DXA},
+      columnWidths:[HDR_LOGO_W,HDR_TEXT_W],
+      margins:{top:0,bottom:0,left:0,right:0},
+      rows:[new D.TableRow({children:[logoCell,textCell]})]
+    });
+
+    /* ---- ERROR ROWS ---- */
+    var errRows=[
+      new D.TableRow({tableHeader:true,children:[
+        hCell("Stt\nП.п",COLS[0]),
+        hCell("Tên hệ thống\nНаименование оборудования",COLS[1]),
+        hCell("Vị trí lắp đặt\nМесто установки",COLS[2]),
+        hCell("Tình trạng hư hỏng/báo lỗi\nСостояние/повреждения",COLS[3]),
+        hCell("Ngày phát hiện hư hỏng/báo lỗi\nДата обнаружения/повреждения",COLS[4]),
+        hCell("Biện pháp khắc phục\nМероприятия для устранения",COLS[5])
+      ]})
+    ];
+    if(errors.length){
+      // Gộp các lỗi cùng hệ thống để dùng rowspan
+      var grouped=[]; // [{deviceId, dev, items:[...]}]
+      errors.forEach(function(e){
+        var g=grouped.find(function(x){return x.deviceId===e.deviceId;});
+        if(g){g.items.push(e);}
+        else{
+          var dev=devices.find(function(d){return d.id===e.deviceId;})||{};
+          grouped.push({deviceId:e.deviceId,dev:dev,items:[e]});
+        }
+      });
+      var rowNum=0;
+      grouped.forEach(function(g){
+        var dev=g.dev;
+        var devLabel=dev.name||"";
+        g.items.forEach(function(e,idx){
+          rowNum++;
+          var eLabel=e.errType==="Khác"?(e.errCustom||"Khác"):"Báo lỗi"+(e.childDevice?" "+e.childDevice:"")+(e.devLocation?" – "+e.devLocation:"");
+          var rowCells=[];
+          // STT: chỉ hiện ở hàng đầu của nhóm, dùng rowSpan
+          if(idx===0){
+            rowCells.push(new D.TableCell({borders:allB,width:{size:COLS[0],type:D.WidthType.DXA},
+              rowSpan:g.items.length,margins:{top:60,bottom:60,left:80,right:80},
+              verticalAlign:D.VerticalAlign.CENTER,
+              children:[new D.Paragraph({alignment:D.AlignmentType.CENTER,
+                children:[new D.TextRun({text:String(rowNum-(g.items.length-1)),size:20,font:"Times New Roman"})]})]
+            }));
+            // Tên hệ thống — rowSpan
+            rowCells.push(new D.TableCell({borders:allB,width:{size:COLS[1],type:D.WidthType.DXA},
+              rowSpan:g.items.length,margins:{top:60,bottom:60,left:80,right:80},
+              verticalAlign:D.VerticalAlign.CENTER,
+              children:[new D.Paragraph({
+                children:[new D.TextRun({text:devLabel,bold:true,size:20,font:"Times New Roman"})]})]
+            }));
+            // Vị trí lắp đặt (hệ thống) — rowSpan
+            rowCells.push(new D.TableCell({borders:allB,width:{size:COLS[2],type:D.WidthType.DXA},
+              rowSpan:g.items.length,margins:{top:60,bottom:60,left:80,right:80},
+              verticalAlign:D.VerticalAlign.CENTER,
+              children:[new D.Paragraph({
+                children:[new D.TextRun({text:dev.location||"",size:20,font:"Times New Roman"})]})]
+            }));
+          }
+          // Tình trạng, ngày, biện pháp (mỗi hàng)
+          rowCells.push(dCell(eLabel,COLS[3]));
+          rowCells.push(dCell(fmtD(e.detectDate),COLS[4],true));
+          rowCells.push(dCell(e.measure||"",COLS[5]));
+          errRows.push(new D.TableRow({children:rowCells}));
+        });
+      });
+    } else {
+      errRows.push(new D.TableRow({children:[
+        new D.TableCell({borders:allB,width:{size:TW,type:D.WidthType.DXA},columnSpan:6,
+          margins:{top:80,bottom:80,left:80,right:80},
+          children:[new D.Paragraph({alignment:D.AlignmentType.CENTER,
+            children:[new D.TextRun({text:"Không có thiết bị báo lỗi trong tháng / Нет",italics:true,size:20,font:"Times New Roman"})]
+          })]
+        })
+      ]}));
+    }
+
+    /* ---- SIGNATURE TABLE ----
+       Layout theo mẫu:
+       - Cột giữa-phải: Giám đốc XNDV / Директор ПОСОМ  (căn giữa, chữ đậm)
+       - Dưới trái:     Ký tắt / Phòng Kỹ thuật – Vật tư (đậm, gạch dưới)
+       - Dưới trái:     Thực hiện/ Выпол.: [tên]          (đậm nghiêng)
+    ---- */
+    var sigTable=new D.Table({
+      width:{size:TW,type:D.WidthType.DXA},
+      columnWidths:[Math.floor(TW*0.45), Math.floor(TW*0.55)],
+      rows:[
+        // Row 1: trống trái | Giám đốc XNDV phải
+        new D.TableRow({children:[
+          new D.TableCell({borders:noB,width:{size:Math.floor(TW*0.45),type:D.WidthType.DXA},
+            children:[new D.Paragraph({children:[new D.TextRun({text:""})]})]
+          }),
+          new D.TableCell({borders:noB,width:{size:Math.floor(TW*0.55),type:D.WidthType.DXA},
+            margins:{top:0,bottom:0,left:80,right:80},
+            children:[
+              new D.Paragraph({alignment:D.AlignmentType.CENTER,spacing:{before:0,after:40},
+                children:[new D.TextRun({text:"Giám đốc XNDV",bold:true,size:24,font:"Times New Roman"})]}),
+              new D.Paragraph({alignment:D.AlignmentType.CENTER,spacing:{before:0,after:0},
+                children:[new D.TextRun({text:"Директор ПОСОМ",bold:true,size:22,font:"Times New Roman"})]})
+            ]
+          })
+        ]}),
+        // Row 2: khoảng trống cho ký
+        new D.TableRow({children:[
+          new D.TableCell({borders:noB,width:{size:Math.floor(TW*0.45),type:D.WidthType.DXA},
+            children:[new D.Paragraph({spacing:{before:0,after:0},children:[new D.TextRun({text:"",size:24})]}),
+                      new D.Paragraph({spacing:{before:0,after:0},children:[new D.TextRun({text:"",size:24})]}),
+                      new D.Paragraph({spacing:{before:0,after:0},children:[new D.TextRun({text:"",size:24})]})]
+          }),
+          new D.TableCell({borders:noB,width:{size:Math.floor(TW*0.55),type:D.WidthType.DXA},
+            children:[new D.Paragraph({spacing:{before:0,after:0},children:[new D.TextRun({text:"",size:24})]}),
+                      new D.Paragraph({spacing:{before:0,after:0},children:[new D.TextRun({text:"",size:24})]}),
+                      new D.Paragraph({spacing:{before:0,after:0},children:[new D.TextRun({text:"",size:24})]})]
+          })
+        ]})
+      ]
+    });
+
+    var doc=new D.Document({sections:[{
+      properties:{page:{size:{width:11907,height:16840},margin:{top:851,right:992,bottom:709,left:1560}}},
+      children:[
+        // Header box
+        headerTable,
+        pr([],{after:160}),
+        // Title
+        pr([run("BÁO CÁO TÌNH TRẠNG HOẠT ĐỘNG CỦA",{bold:true,size:26})],{align:D.AlignmentType.CENTER,after:20}),
+        pr([run("HỆ THỐNG BÁO CHÁY TỰ ĐỘNG",{bold:true,size:26})],{align:D.AlignmentType.CENTER,after:40}),
+        pr([run("Отчет о техническом состоянии системы АПС",{bold:true,size:22})],{align:D.AlignmentType.CENTER,after:60}),
+        pr([run("Tháng/Месяц      "+m+"/"+y,{size:24})],{align:D.AlignmentType.CENTER,after:40}),
+        pr([run("Đơn vị/Предприятие: XN Dịch vụ / ПОСОМ",{size:24})],{align:D.AlignmentType.CENTER,after:200}),
+        // Section 1
+        pr([run("1.  Các thiết bị hư hỏng/báo lỗi/",{bold:true})],{after:0}),
+        pr([run("    Выявленные отказы, повреждения оборудований:",{bold:true})],{after:100}),
+        new D.Table({width:{size:TW,type:D.WidthType.DXA},columnWidths:COLS,rows:errRows}),
+        // Section 2
+        pr([run("2.  Các thiết bị mới lắp đặt/cải tạo lại chưa đưa vào hoạt động: ",{bold:true})],{before:240,after:0}),
+        pr([run("    Установка нового оборудования/ модернизация без ввода в эксплуатацию:",{size:22})],{after:80}),
+        pr([run(newDevices||"",{size:24})],{after:200}),
+        // Section 3
+        pr([run("3.  Các công trình chưa được lắp đặt hệ thống báo cháy tự động:",{bold:true})],{after:0}),
+        pr([run("    Объекты, на которых не установлена система АПС:",{size:22})],{after:80}),
+        pr([run(noSystem||"",{size:24})],{after:600}),
+        // Signatures — Giám đốc XNDV
+        sigTable,
+        pr([],{after:240}),
+        // Ký tắt / Phòng Kỹ thuật
+        pr([run("Ký tắt",{bold:true,underline:true})],{after:0}),
+        pr([run("Phòng Kỹ thuật – Vật tư",{bold:true,underline:true})],{after:240}),
+        // Thực hiện
+        pr([run("Thực hiện/ Выпол.: ",{bold:true,italic:true}),run(preparedBy,{bold:true,italic:true})],{after:0}),
+      ]
+    }]});
+
+    D.Packer.toBlob(doc).then(function(blob){
+      var url=URL.createObjectURL(blob);
+      var a=document.createElement("a");
+      a.href=url;
+      a.download="BaoCao_BCTD_T"+m+"_"+y+".docx";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      btn.disabled=false; btn.textContent="📥 Xuất báo cáo .docx";
+      closeReportModal();
+      showToast("✅ Đã xuất báo cáo tháng "+m+"/"+y,"success");
+    });
+  } catch(err){
+    console.error(err);
+    showToast("❌ Lỗi tạo báo cáo: "+err.message,"danger");
+    btn.disabled=false; btn.textContent="📥 Xuất báo cáo .docx";
+  }
+}
+
+/* ---- INIT ---- */
+seedUsers();
+if(typeof DB!=="undefined"){
+  DB.init();
+  var _u=currentUser();
+  if(_u)DB.setUser(_u.username);
+}
+buildSidebar();
+buildTopbar();
+setupRoleUI();
+populateMonthFilter();
+renderDevices();
+renderErrorLog();
+// Pull từ Sheets
+setTimeout(function(){
+  if(typeof DB==="undefined"||!DB.isReady())return;
+  DB.getAll("pccc_devices").then(function(r){if(r&&r.length){save(K_DEVICES,r);renderDevices();populateDeviceSelect();}}).catch(function(){});
+  DB.getAll("pccc_errors").then(function(r){if(r&&r.length){save(K_ERRORS,r);populateMonthFilter();renderErrorLog();}}).catch(function(){});
+},1500);
+</script>
 </body>
 </html>
