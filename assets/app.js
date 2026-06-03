@@ -79,7 +79,13 @@
     return u;
   }
   function getUsers(){ return load(K_USERS, []); }
+  function dedupUsers(u){
+    var seen={}, out=[];
+    (u||[]).forEach(function(x){ if(x.username && !seen[x.username]){ seen[x.username]=true; out.push(x); } });
+    return out;
+  }
   function setUsers(u){
+    u = dedupUsers(u);
     save(K_USERS, u);
     // Đẩy lên Sheets ngầm (write-through cache)
     if(typeof DB !== "undefined" && DB.isReady()){
@@ -94,14 +100,41 @@
 
   /* -------- PHIÊN LÀM VIỆC -------- */
   function currentUser(){ var un=load(K_SESS,null); return un?findUser(un):null; }
-  function login(un, pw){
-    var u=findUser((un||"").trim());
-    if(!u) return {ok:false,msg:"Tài khoản không tồn tại."};
-    if(u.active===false) return {ok:false,msg:"Tài khoản đã bị khoá."};
-    if(u.password!==pw) return {ok:false,msg:"Sai mật khẩu."};
-    save(K_SESS, u.username);
-    if(typeof DB !== "undefined") DB.setUser(u.username);
-    return {ok:true};
+  /* -------- HASH MẬT KHẨU (SHA-256 + salt, async) -------- */
+  var PW_SALT = "vsp_hse_2024";
+  function hashPw(pw){
+    var data = new TextEncoder().encode(PW_SALT + pw);
+    return crypto.subtle.digest("SHA-256", data).then(function(buf){
+      return Array.from(new Uint8Array(buf)).map(function(b){ return b.toString(16).padStart(2,"0"); }).join("");
+    });
+  }
+  // Phát hiện mật khẩu đã hash chưa — SHA-256 luôn là đúng 64 ký tự hex
+  // Không dùng flag pwHash riêng vì field này bị mất khi sync qua Google Sheets
+  function isHashed(pw){ return !!pw && /^[0-9a-f]{64}$/.test(pw); }
+
+  function login(un, pw, callback){
+    hashPw(pw).then(function(hashed){
+      var u=findUser((un||"").trim());
+      if(!u){ callback({ok:false,msg:"Tài khoản không tồn tại."}); return; }
+      if(u.pendingApproval && u.active===false){
+        callback({ok:false,msg:"⏳ Tài khoản đang chờ Admin phê duyệt. Vui lòng liên hệ quản trị viên."}); return;
+      }
+      if(u.active===false){ callback({ok:false,msg:"🔒 Tài khoản đã bị khoá. Liên hệ Admin để mở khoá."}); return; }
+      // Tự phát hiện: nếu stored password là 64-char hex → đã hash; ngược lại → plaintext cũ
+      var isMatch = isHashed(u.password) ? (u.password === hashed) : (u.password === pw);
+      if(!isMatch){ callback({ok:false,msg:"Sai mật khẩu."}); return; }
+      // Migrate plaintext → hash khi login thành công
+      if(!isHashed(u.password)){
+        var users=getUsers();
+        for(var i=0;i<users.length;i++){
+          if(users[i].username===u.username){ users[i].password=hashed; break; }
+        }
+        save(K_USERS, dedupUsers(users));
+      }
+      save(K_SESS, u.username);
+      if(typeof DB !== "undefined") DB.setUser(u.username);
+      callback({ok:true});
+    });
   }
   function logout(){ localStorage.removeItem(K_SESS); location.reload(); }
 
@@ -111,16 +144,15 @@
     var m = menuBySlug(slug);
     // Trang adminOnly: chỉ admin đăng nhập mới xem được
     if(m && m.adminOnly) return u && u.role==="admin";
-    // Chưa đăng nhập: xem được tất cả trang thường (chế độ viewer)
-    if(!u) return true;
-    if(u.role==="admin") return true;
-    return (u.perms||[]).indexOf(slug) !== -1;
+    // Tất cả người dùng (kể cả chưa đăng nhập) đều xem được trang thường
+    return true;
   }
   function canEdit(u, slug){
     if(!u) return false;
     if(u.role==="admin") return true;
     if(u.role==="viewer") return false;
-    return canView(u, slug);
+    // User: chỉ edit được trang admin đã cấp quyền
+    return (u.perms||[]).indexOf(slug) !== -1;
   }
   function roleLabel(r){ return r==="admin"?"Admin":(r==="viewer"?"Viewer":"User"); }
 
@@ -196,9 +228,13 @@
     $("#hse-lm-close").addEventListener("click", close);
     $("#hse-lm-form").addEventListener("submit", function(e){
       e.preventDefault();
-      var r = login($("#hse-lm-u").value, $("#hse-lm-p").value);
-      if(r.ok){ location.reload(); }
-      else{ var er=$("#hse-lm-err"); er.textContent=r.msg; er.style.display="block"; }
+      var btn=this.querySelector("button[type=submit]");
+      if(btn){btn.disabled=true;btn.textContent="Đang kiểm tra...";}
+      login($("#hse-lm-u").value, $("#hse-lm-p").value, function(r){
+        if(btn){btn.disabled=false;btn.textContent="Đăng nhập";}
+        if(r.ok){ location.reload(); }
+        else{ var er=$("#hse-lm-err"); er.textContent=r.msg; er.style.display="block"; }
+      });
     });
     document.getElementById("hse-lm-reg-link").addEventListener("click", function(e){ e.preventDefault(); showRegPanel(); });
     document.getElementById("hse-reg-back").addEventListener("click", function(e){ e.preventDefault(); showLoginPanel(); });
@@ -216,16 +252,20 @@
       if(pw.length<6){ return showErr("Mật khẩu tối thiểu 6 ký tự."); }
       if(findUser(un)){ return showErr("Email này đã được đăng ký."); }
       var u=getUsers();
-      u.push({ id:Date.now().toString(36), username:un, password:pw, fullname:fn, danhSo:ds,
-        role:"viewer", perms:[], active:false, pendingApproval:true, created:new Date().toISOString() });
-      setUsers(u);
-      document.getElementById("hse-reg-panel").innerHTML=
-        '<div style="text-align:center;padding:24px 0;">'+
-          '<div style="font-size:40px;margin-bottom:12px;">✅</div>'+
-          '<div style="font-size:14px;font-weight:700;color:var(--brand);margin-bottom:8px;">Đăng ký thành công!</div>'+
-          '<div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">Tài khoản <b>'+un+'</b> đã được tạo và đang chờ Admin phê duyệt.</div>'+
-          '<button class="btn" onclick="document.getElementById(\'hse-login-modal\').classList.remove(\'open\')">Đóng</button>'+
-        '</div>';
+      var regBtn=document.getElementById("hse-reg-submit");
+      if(regBtn){regBtn.disabled=true;regBtn.textContent="Đang xử lý...";}
+      hashPw(pw).then(function(hashed){
+        u.push({ id:Date.now().toString(36), username:un, password:hashed, fullname:fn, danhSo:ds,
+          role:"viewer", perms:[], active:false, pendingApproval:true, created:new Date().toISOString() });
+        setUsers(u);
+        document.getElementById("hse-reg-panel").innerHTML=
+          '<div style="text-align:center;padding:24px 0;">'+
+            '<div style="font-size:40px;margin-bottom:12px;">✅</div>'+
+            '<div style="font-size:14px;font-weight:700;color:var(--brand);margin-bottom:8px;">Đăng ký thành công!</div>'+
+            '<div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">Tài khoản <b>'+esc(un)+'</b> đã được tạo và đang chờ Admin phê duyệt.</div>'+
+            '<button class="btn" onclick="document.getElementById(\'hse-login-modal\').classList.remove(\'open\')">Đóng</button>'+
+          '</div>';
+      }).catch(function(){ if(regBtn){regBtn.disabled=false;regBtn.textContent="Gửi đăng ký";} });
     });
   }
 
@@ -257,13 +297,21 @@
       '<div class="t2">'+ORG_SHORT+'</div>'+
       '<div class="t2">'+ORG_PARENT+'</div></div>'));
     var nav = el("nav","nav");
+    // Fix 6: đếm tài khoản chờ duyệt để hiện badge
+    var pendingCount = isAdmin(u) ? getUsers().filter(function(x){ return x.pendingApproval && x.active===false; }).length : 0;
     MENU.forEach(function(item){
       if(item.adminOnly && !isAdmin(u)) return;
-      var allowed = canView(u, item.slug);
-      var a = el("a", (item.slug===activeSlug?"active ":"")+(allowed?"":"locked"));
-      a.innerHTML='<span class="ic">'+item.icon+'</span><span>'+esc(item.title)+'</span>'+(allowed?"":'<span class="lk">🔒</span>');
-      if(allowed){ a.href=item.slug+".html"; }
-      else{ a.addEventListener("click",function(e){ e.preventDefault(); }); a.title="Bạn chưa được cấp quyền truy cập trang này"; }
+      var editable = canEdit(u, item.slug);
+      var badge = (item.slug==="quan-tri-he-thong" && pendingCount>0)
+        ? '<span style="margin-left:auto;background:#C8102E;color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;">'+pendingCount+'</span>'
+        : '';
+      // Nếu user đăng nhập nhưng không có quyền sửa → hiện nhãn "Chỉ xem" nhỏ
+      var viewOnlyTag = (u && u.role!=="admin" && !editable && item.slug!=="quan-tri-he-thong")
+        ? '<span style="margin-left:auto;font-size:9.5px;opacity:.6;font-style:italic;">chỉ xem</span>'
+        : '';
+      var a = el("a", (item.slug===activeSlug?"active ":""));
+      a.innerHTML='<span class="ic">'+item.icon+'</span><span>'+esc(item.title)+'</span>'+badge+viewOnlyTag;
+      a.href=item.slug+".html";
       nav.appendChild(a);
     });
     side.appendChild(nav);
@@ -277,13 +325,39 @@
     var userBoxHtml;
     if(u){
       var initials=(u.fullname||u.username).trim().split(/\s+/).map(function(w){return w[0];}).slice(-2).join("").toUpperCase();
+      var pendingBadge = (isAdmin(u) && pendingCount > 0)
+        ? '<a href="quan-tri-he-thong.html" style="position:relative;display:inline-flex;align-items:center;margin-right:8px;text-decoration:none;" title="'+pendingCount+' tài khoản chờ duyệt">'+
+            '<span style="font-size:18px;">🔔</span>'+
+            '<span style="position:absolute;top:-4px;right:-5px;background:#C8102E;color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px;min-width:14px;text-align:center;">'+pendingCount+'</span>'+
+          '</a>'
+        : '';
       userBoxHtml=
-        '<div class="user-box">'+
-          '<div class="user-meta"><div class="nm">'+esc(u.fullname||u.username)+'</div>'+
-            '<span class="badge badge-'+u.role+'">'+roleLabel(u.role)+'</span></div>'+
-          '<div class="avatar">'+esc(initials)+'</div>'+
-          '<button class="btn btn-ghost btn-sm" id="btn-doi-mk" title="Đổi mật khẩu">🔑</button>'+
-          '<button class="btn btn-ghost btn-sm" id="lo">Đăng xuất</button>'+
+        '<div class="user-box" style="position:relative;">'+
+          pendingBadge+
+          '<button id="btn-profile" style="display:flex;align-items:center;gap:8px;background:none;border:none;cursor:pointer;padding:4px 8px;border-radius:8px;transition:background .15s;" onmouseover="this.style.background=\'rgba(0,0,0,0.06)\'" onmouseout="this.style.background=\'transparent\'">'+
+            '<div class="avatar" style="background:var(--brand);color:#fff;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;">'+esc(initials)+'</div>'+
+            '<div style="text-align:left;">'+
+              '<div style="font-size:13px;font-weight:600;color:var(--text);">'+esc(u.fullname||u.username)+'</div>'+
+              '<div style="font-size:11px;color:var(--text-muted);">'+roleLabel(u.role)+'</div>'+
+            '</div>'+
+            '<span style="font-size:10px;color:var(--text-muted);">▼</span>'+
+          '</button>'+
+          '<div id="profile-dropdown" style="display:none;position:absolute;right:0;top:calc(100% + 6px);background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.14);min-width:220px;z-index:200;border:1px solid var(--border);overflow:hidden;">'+
+            '<div style="padding:14px 16px;border-bottom:1px solid var(--border);background:#f8f9fd;">'+
+              '<div style="font-weight:700;font-size:13.5px;">'+esc(u.fullname||u.username)+'</div>'+
+              '<div style="font-size:12px;color:var(--text-muted);">'+esc(u.username)+' · '+roleLabel(u.role)+'</div>'+
+            '</div>'+
+            '<button id="btn-edit-profile" style="width:100%;text-align:left;padding:10px 16px;border:none;background:none;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px;transition:background .12s;" onmouseover="this.style.background=\'#f0f3fa\'" onmouseout="this.style.background=\'transparent\'">'+
+              '👤 Chỉnh sửa hồ sơ cá nhân'+
+            '</button>'+
+            '<button id="btn-doi-mk" style="width:100%;text-align:left;padding:10px 16px;border:none;background:none;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px;transition:background .12s;" onmouseover="this.style.background=\'#f0f3fa\'" onmouseout="this.style.background=\'transparent\'">'+
+              '🔑 Đổi mật khẩu'+
+            '</button>'+
+            '<div style="height:1px;background:var(--border);margin:4px 0;"></div>'+
+            '<button id="lo" style="width:100%;text-align:left;padding:10px 16px;border:none;background:none;cursor:pointer;font-size:13px;color:#c0392b;display:flex;align-items:center;gap:8px;transition:background .12s;" onmouseover="this.style.background=\'#fdedec\'" onmouseout="this.style.background=\'transparent\'">'+
+              '🚪 Đăng xuất'+
+            '</button>'+
+          '</div>'+
         '</div>';
     } else {
       userBoxHtml=
@@ -310,9 +384,23 @@
     document.body.appendChild(bd);
 
     if(u){
+      // Profile dropdown toggle
+      var profileBtn=document.getElementById("btn-profile");
+      var profileDrop=document.getElementById("profile-dropdown");
+      if(profileBtn&&profileDrop){
+        profileBtn.addEventListener("click",function(e){
+          e.stopPropagation();
+          var open=profileDrop.style.display!=="none";
+          profileDrop.style.display=open?"none":"block";
+        });
+        document.addEventListener("click",function(){ profileDrop.style.display="none"; },{once:false});
+        profileDrop.addEventListener("click",function(e){e.stopPropagation();});
+      }
       $("#lo").addEventListener("click", logout);
       var doiMkBtn = document.getElementById("btn-doi-mk");
-      if(doiMkBtn) doiMkBtn.addEventListener("click", openDoiMatKhau);
+      if(doiMkBtn) doiMkBtn.addEventListener("click", function(){ if(profileDrop)profileDrop.style.display="none"; openDoiMatKhau(); });
+      var editProfileBtn = document.getElementById("btn-edit-profile");
+      if(editProfileBtn) editProfileBtn.addEventListener("click", function(){ if(profileDrop)profileDrop.style.display="none"; openEditProfile(); });
     } else {
       ensureLoginModal();
       $("#lo").addEventListener("click", openLoginModal);
@@ -360,6 +448,9 @@
     wrap.appendChild(el("div","",
       '<div class="page-title">'+m.icon+' '+esc(m.title)+'</div>'+
       '<div class="page-desc">'+descText+'</div>'));
+
+    // Widget kế hoạch tháng này
+    renderKeHoachWidget(slug, wrap);
 
     wrap.appendChild(el("div","wip",
       '<div class="ic">🚧</div><h3>Đang xây dựng</h3>'+
@@ -476,7 +567,7 @@
         return (x.username+" "+(x.fullname||"")).toLowerCase().indexOf(f)!==-1;
       });
       var nMod = MENU.length;
-      var html='<thead><tr><th>Tài khoản</th><th>Danh số</th><th>Họ tên</th><th>Vai trò</th><th>Số trang được cấp</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>';
+      var html='<thead><tr><th>Tài khoản</th><th>Danh số</th><th>Họ tên</th><th>Vai trò</th><th>Trang được phép sửa</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>';
       rows.forEach(function(x){
         var permCount = x.role==="admin" ? nMod : (x.perms||[]).length;
         var isPending = x.pendingApproval && x.active===false;
@@ -533,14 +624,14 @@
             u[i].role=data.role;
             u[i].perms=data.perms;
             u[i].updated=new Date().toISOString();
-            if(data.password) u[i].password=data.password;
+            if(data.password){ u[i].password=data.password; }
             if(data.approve){ u[i].active=true; u[i].pendingApproval=false; }
           }
         }
       } else {
         if(findUser(data.username)){ alert("Email này đã được sử dụng."); return false; }
         u.push({ id:Date.now().toString(36), username:data.username,
-          password:data.password||"123456", fullname:data.fullname,
+          password:data.password, fullname:data.fullname,
           danhSo:data.danhSo||"", role:data.role, perms:data.perms,
           active:true, created:new Date().toISOString() });
       }
@@ -574,11 +665,12 @@
           '<span class="muted">(<a href="#" id="selAll">chọn tất cả</a> · <a href="#" id="selNone">bỏ chọn</a>)</span></label>'+
           '<div class="perm-grid" id="m_perms"></div>'+
           '<div class="muted" id="adminNote" style="display:none;margin-top:6px">Admin mặc định có toàn quyền tất cả các trang.</div></div>'+
-        '<div style="border-top:1px solid var(--border);margin-top:14px;padding-top:14px;">'+
-          '<div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px;">🔑 Đổi mật khẩu</div>'+
+        '<div id="m_pw_wrap" style="border-top:1px solid var(--border);margin-top:14px;padding-top:14px;display:none">'+
+          '<div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;">🔑 Đặt mật khẩu ban đầu</div>'+
+          '<div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">Chỉ dùng khi tạo tài khoản mới. Người dùng tự đổi mật khẩu qua hồ sơ cá nhân.</div>'+
           '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">'+
-            '<div class="field"><label>Mật khẩu mới <span class="muted">(để trống = không đổi)</span></label><input class="inp" id="m_pw" type="password" style="width:100%" placeholder="Tối thiểu 6 ký tự"></div>'+
-            '<div class="field"><label>Xác nhận mật khẩu mới</label><input class="inp" id="m_pw2" type="password" style="width:100%" placeholder="Nhập lại mật khẩu mới"></div>'+
+            '<div class="field"><label>Mật khẩu <span style="color:var(--danger)">*</span></label><input class="inp" id="m_pw" type="password" style="width:100%" placeholder="Tối thiểu 6 ký tự"></div>'+
+            '<div class="field"><label>Xác nhận mật khẩu</label><input class="inp" id="m_pw2" type="password" style="width:100%" placeholder="Nhập lại mật khẩu"></div>'+
           '</div>'+
         '</div>'+
         '<div id="m_approve_wrap" style="display:none;background:#fef9e7;border:1px solid #fde68a;border-radius:8px;padding:10px 14px;margin-top:12px;">'+
@@ -610,13 +702,16 @@
     var api = { bg:bg, onSave:null };
     api.open=function(user){
       editing=user;
-      $("#mt",bg).textContent=user?"Sửa người dùng":"Thêm người dùng";
+      $("#mt",bg).textContent=user?"Phân quyền người dùng":"Thêm người dùng mới";
       $("#m_un",bg).value=user?user.username:"";
       $("#m_un",bg).disabled=!!user;
       $("#m_fn",bg).value=user?(user.fullname||""):"";
       $("#m_ds",bg).value=user?(user.danhSo||""):"";
       $("#m_pw",bg).value="";
       $("#m_pw2",bg).value="";
+      // Chỉ hiện ô mật khẩu khi tạo mới
+      var pwWrap=document.getElementById("m_pw_wrap");
+      if(pwWrap) pwWrap.style.display=user?"none":"block";
       $("#m_role",bg).value=user?user.role:"user";
       setPerms(user?(user.role==="admin"?[]:(user.perms||[])):[]);
       toggleRoleUI();
@@ -626,6 +721,12 @@
       if(user && user.pendingApproval && !user.active){
         approveWrap.style.display="block";
         approveChk.checked=false;
+        // Fix 5: gợi ý phân quyền mặc định khi duyệt (chọn sẵn các trang cơ bản)
+        var defaultPerms=["tong-quan","pccc-cnch","cap-phat-bhld","huan-luyen-dao-tao",
+          "ung-pho-khan-cap","jsa","sop","kiem-tra-cac-cap","quan-ly-thiet-bi",
+          "kham-suc-khoe","an-toan-dien","an-toan-giao-thong","moi-truong",
+          "quan-ly-hoa-chat","quan-ly-nha-thau","ke-hoach","bao-cao"];
+        if(!(user.perms && user.perms.length)) setPerms(defaultPerms);
       } else { approveWrap.style.display="none"; }
       bg.classList.add("open");
     };
@@ -645,13 +746,21 @@
       var pw2=$("#m_pw2",bg).value;
       if(!editing && !un){ alert("Vui lòng nhập tên đăng nhập."); return; }
       if(!fn){ alert("Vui lòng nhập họ tên."); return; }
-      if(pw && pw.length<6){ alert("Mật khẩu mới phải có tối thiểu 6 ký tự."); return; }
+      // Fix 3: bắt buộc nhập mật khẩu khi tạo mới
+      if(!editing && !pw){ alert("Vui lòng nhập mật khẩu cho tài khoản mới."); return; }
+      if(pw && pw.length<6){ alert("Mật khẩu phải có tối thiểu 6 ký tự."); return; }
       if(pw && pw!==pw2){ alert("Mật khẩu xác nhận không khớp."); return; }
       var perms = role==="admin" ? allSlugs() : getPerms();
       var approve = document.getElementById("m_approve") && document.getElementById("m_approve").checked;
-      var data={username:un, fullname:fn, danhSo:ds, role:role, perms:perms, password:pw, approve:approve};
-      var ok=api.onSave && api.onSave(data, editing?editing.username:null);
-      if(ok!==false) close();
+      var saveBtn=document.getElementById("ms"); if(saveBtn){saveBtn.disabled=true;saveBtn.textContent="Đang lưu...";}
+      function doSave(hashedPw){
+        var data={username:un, fullname:fn, danhSo:ds, role:role, perms:perms, password:hashedPw, pwHash:!!hashedPw, approve:approve};
+        var ok=api.onSave && api.onSave(data, editing?editing.username:null);
+        if(saveBtn){saveBtn.disabled=false;saveBtn.textContent="Lưu";}
+        if(ok!==false) close();
+      }
+      // Fix 4: hash nếu có mật khẩu mới
+      if(pw){ hashPw(pw).then(doSave); } else { doSave(null); }
     });
     return api;
   }
@@ -700,24 +809,88 @@
       var me=currentUser();
       if(!me){ showErr("Phiên đăng nhập đã hết. Vui lòng đăng nhập lại."); return; }
       if(!cur){ showErr("Vui lòng nhập mật khẩu hiện tại."); return; }
-      if(me.password!==cur){ showErr("Mật khẩu hiện tại không đúng."); return; }
       if(!nw||nw.length<6){ showErr("Mật khẩu mới phải có tối thiểu 6 ký tự."); return; }
       if(nw!==nw2){ showErr("Mật khẩu xác nhận không khớp."); return; }
       if(nw===cur){ showErr("Mật khẩu mới phải khác mật khẩu hiện tại."); return; }
-      // Cập nhật
-      var u=getUsers();
-      for(var i=0;i<u.length;i++){
-        if(u[i].username===me.username){ u[i].password=nw; u[i].updated=new Date().toISOString(); break; }
-      }
-      setUsers(u);
-      showOk("✅ Đổi mật khẩu thành công!");
-      document.getElementById("dmk-cur").value="";
-      document.getElementById("dmk-new").value="";
-      document.getElementById("dmk-new2").value="";
+      var saveBtn=document.getElementById("dmk-save");
+      saveBtn.disabled=true;
+      // Kiểm tra mật khẩu hiện tại (hỗ trợ cả hash lẫn plaintext)
+      hashPw(cur).then(function(curHash){
+        var isOk = isHashed(me.password) ? (me.password===curHash) : (me.password===cur);
+        if(!isOk){ showErr("Mật khẩu hiện tại không đúng."); saveBtn.disabled=false; return; }
+        return hashPw(nw);
+      }).then(function(newHash){
+        if(!newHash) return;
+        var u=getUsers();
+        for(var i=0;i<u.length;i++){
+          if(u[i].username===me.username){ u[i].password=newHash; u[i].updated=new Date().toISOString(); break; }
+        }
+        setUsers(u);
+        saveBtn.disabled=false;
+        showOk("✅ Đổi mật khẩu thành công!");
+        document.getElementById("dmk-cur").value="";
+        document.getElementById("dmk-new").value="";
+        document.getElementById("dmk-new2").value="";
+      });
     });
 
     bg.classList.add("open");
     setTimeout(function(){ document.getElementById("dmk-cur").focus(); }, 80);
+  }
+
+  /* -------- HỒ SƠ CÁ NHÂN -------- */
+  function openEditProfile(){
+    var me=currentUser();
+    if(!me) return;
+    var existing=document.getElementById("hse-profile-modal");
+    if(existing){ existing.classList.add("open"); return; }
+    var bg=el("div","modal-bg"); bg.id="hse-profile-modal";
+    bg.innerHTML=
+      '<div class="modal" style="max-width:440px;">'+
+        '<div class="modal-h"><h3>👤 Hồ sơ cá nhân</h3><button class="x" id="pf-close">×</button></div>'+
+        '<div class="modal-b">'+
+          '<div id="pf-ok" style="display:none;background:#eafaf1;color:#1a7a3c;border:1px solid #a9dfbf;border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:12px;"></div>'+
+          '<div id="pf-err" style="display:none;background:#fdedec;color:#c0392b;border:1px solid #f1948a;border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:12px;"></div>'+
+          '<div class="field"><label>Tên đăng nhập</label>'+
+            '<input class="inp" id="pf-un" disabled style="width:100%;background:#f8f9fd;color:var(--text-muted)">'+
+          '</div>'+
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'+
+            '<div class="field"><label>Họ và tên <span style="color:var(--danger)">*</span></label>'+
+              '<input class="inp" id="pf-fn" style="width:100%" placeholder="Nguyễn Văn A">'+
+            '</div>'+
+            '<div class="field"><label>Danh số</label>'+
+              '<input class="inp" id="pf-ds" style="width:100%" placeholder="VD: 21398">'+
+            '</div>'+
+          '</div>'+
+        '</div>'+
+        '<div class="modal-f"><button class="btn btn-ghost" id="pf-cancel">Huỷ</button><button class="btn btn-accent" id="pf-save">💾 Lưu thông tin</button></div>'+
+      '</div>';
+    document.body.appendChild(bg);
+    function close(){ bg.classList.remove("open"); }
+    document.getElementById("pf-close").addEventListener("click",close);
+    document.getElementById("pf-cancel").addEventListener("click",close);
+    bg.addEventListener("click",function(e){ if(e.target===bg) close(); });
+    document.getElementById("pf-save").addEventListener("click",function(){
+      var fn=(document.getElementById("pf-fn").value||"").trim();
+      var ds=(document.getElementById("pf-ds").value||"").trim();
+      var errEl=document.getElementById("pf-err");
+      var okEl=document.getElementById("pf-ok");
+      errEl.style.display="none"; okEl.style.display="none";
+      if(!fn){ errEl.textContent="Vui lòng nhập họ và tên."; errEl.style.display="block"; return; }
+      var users=getUsers(); var me2=currentUser();
+      for(var i=0;i<users.length;i++){
+        if(users[i].username===me2.username){ users[i].fullname=fn; users[i].danhSo=ds; users[i].updated=new Date().toISOString(); break; }
+      }
+      setUsers(users);
+      okEl.textContent="✅ Đã cập nhật thông tin thành công!"; okEl.style.display="block";
+      setTimeout(function(){ location.reload(); },1200);
+    });
+    bg.classList.add("open");
+    var me2=currentUser();
+    document.getElementById("pf-un").value=me2.username;
+    document.getElementById("pf-fn").value=me2.fullname||"";
+    document.getElementById("pf-ds").value=me2.danhSo||"";
+    setTimeout(function(){ document.getElementById("pf-fn").focus(); },80);
   }
 
   /* -------- PHẦN CÀI ĐẶT DB (hiển thị trong trang Quản trị) -------- */
@@ -778,6 +951,107 @@
         showStatus("❌ Lỗi: " + e.message, false);
       });
     };
+  }
+
+  /* =========================================================
+     WIDGET: KẾ HOẠCH THÁNG NÀY
+     Đọc hse_ke_hoach_links, lọc theo slug + tháng hiện tại
+     ========================================================= */
+  function renderKeHoachWidget(slug, wrap){
+    var now = new Date();
+    var curMonth = now.getMonth() + 1;   // 1–12
+    var curYear  = now.getFullYear();
+
+    var allLinks = load("hse_ke_hoach_links", {});
+    var tasks = (allLinks[slug] || []).filter(function(t){
+      if(t.type === "oncetime"){
+        // Nằm trong khoảng start–end mà khoảng đó giao với tháng hiện tại
+        var inRange = true;
+        if(t.start){
+          var s = new Date(t.start);
+          // last day of current month
+          var lastOfMonth = new Date(curYear, curMonth, 0);
+          if(s > lastOfMonth) inRange = false;
+        }
+        if(t.end){
+          var e = new Date(t.end);
+          // first day of current month
+          var firstOfMonth = new Date(curYear, curMonth - 1, 1);
+          if(e < firstOfMonth) inRange = false;
+        }
+        return inRange;
+      } else {
+        // recurring: allMonths hoặc tháng hiện tại nằm trong months[]
+        if(t.allMonths) return true;
+        return (t.months||[]).indexOf(curMonth) >= 0;
+      }
+    });
+
+    var monthLabel = ["Tháng 1","Tháng 2","Tháng 3","Tháng 4","Tháng 5","Tháng 6",
+                      "Tháng 7","Tháng 8","Tháng 9","Tháng 10","Tháng 11","Tháng 12"][curMonth-1]
+                     + "/" + curYear;
+
+    var section = el("div");
+    section.innerHTML =
+      '<div class="section-h" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'+
+        '<span>📋 Kế hoạch ' + monthLabel + '</span>'+
+        '<a href="ke-hoach.html" style="font-size:12px;color:var(--brand);font-weight:600;text-decoration:none">→ Xem & quản lý kế hoạch</a>'+
+      '</div>';
+
+    if(!tasks.length){
+      section.innerHTML +=
+        '<div style="background:#fff;border-radius:10px;padding:20px 18px;box-shadow:0 2px 8px rgba(0,0,0,0.06);'+
+          'color:var(--text-muted);font-size:13px;text-align:center;">'+
+          '✅ Không có công việc kế hoạch nào trong ' + monthLabel + '.'+
+        '</div>';
+    } else {
+      var rows = tasks.map(function(t, i){
+        var typeBadge = t.type === "oncetime"
+          ? '<span style="background:#dceaf7;color:#003087;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700">Một lần</span>'
+          : '<span style="background:#eafaf1;color:#1a7a3c;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700">Lặp lại</span>';
+        var ngayTH = "";
+        if(t.type === "oncetime"){
+          var parts = [];
+          if(t.start) parts.push(t.start.split("-").reverse().join("/"));
+          if(t.end)   parts.push(t.end.split("-").reverse().join("/"));
+          ngayTH = parts.join(" – ") || "—";
+        } else {
+          ngayTH = t.lastDay ? "Cuối tháng" : (t.execDay ? "Ngày " + t.execDay : "—");
+        }
+        var ph = Array.isArray(t.phoiHop) ? t.phoiHop.join(", ") : (t.phoiHop || "—");
+        return '<tr>'+
+          '<td style="color:var(--text-muted);font-size:12px;width:30px">'+(i+1)+'</td>'+
+          '<td style="font-weight:600">'+ esc(t.name) +'</td>'+
+          '<td>'+ typeBadge +'</td>'+
+          '<td style="white-space:nowrap;font-size:12.5px">'+ esc(ngayTH) +'</td>'+
+          '<td style="font-size:12.5px">'+ esc(t.chuTri||"—") +'</td>'+
+          '<td style="font-size:12.5px">'+ esc(ph) +'</td>'+
+          '<td style="font-size:12px;color:var(--text-muted)">'+ esc(t.coSo||"—") +'</td>'+
+          '<td style="font-size:12px;color:var(--text-muted)">'+ esc(t.ghiChu||"—") +'</td>'+
+          '</tr>';
+      }).join("");
+
+      section.innerHTML +=
+        '<div style="background:#fff;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.07);overflow:auto">'+
+          '<table style="width:100%;border-collapse:collapse">'+
+            '<thead>'+
+              '<tr>'+
+                '<th style="background:#dde6f3;color:#003087;padding:9px 12px;font-size:12.5px;text-align:left;width:30px">#</th>'+
+                '<th style="background:#dde6f3;color:#003087;padding:9px 12px;font-size:12.5px;text-align:left">Nội dung công việc</th>'+
+                '<th style="background:#dde6f3;color:#003087;padding:9px 12px;font-size:12.5px;text-align:left">Loại</th>'+
+                '<th style="background:#dde6f3;color:#003087;padding:9px 12px;font-size:12.5px;text-align:left">Ngày thực hiện</th>'+
+                '<th style="background:#dde6f3;color:#003087;padding:9px 12px;font-size:12.5px;text-align:left">Đơn vị chủ trì</th>'+
+                '<th style="background:#dde6f3;color:#003087;padding:9px 12px;font-size:12.5px;text-align:left">Đơn vị phối hợp</th>'+
+                '<th style="background:#dde6f3;color:#003087;padding:9px 12px;font-size:12.5px;text-align:left">Cơ sở</th>'+
+                '<th style="background:#dde6f3;color:#003087;padding:9px 12px;font-size:12.5px;text-align:left">Ghi chú</th>'+
+              '</tr>'+
+            '</thead>'+
+            '<tbody>'+ rows +'</tbody>'+
+          '</table>'+
+        '</div>';
+    }
+
+    wrap.appendChild(section);
   }
 
   /* -------- XUẤT API -------- */

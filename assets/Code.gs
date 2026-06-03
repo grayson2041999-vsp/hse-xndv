@@ -63,9 +63,13 @@ var SCHEMA = {
     cols: ["id","ten","loai_hop_dong","linh_vuc","nhan_su","dia_diem","ngay_bat_dau","ngay_ket_thuc","lien_he","trang_thai","ghi_chu"],
     desc: "Quản lý nhà thầu"
   },
-  ke_hoach: {
-    cols: ["id","ten","module","thang","nam","nguoi_phu_trach","trang_thai","tien_do","ghi_chu","created_at"],
-    desc: "Kế hoạch HSE"
+  ke_hoach_mot_lan: {
+    cols: ["id","name","status","start","end","chuTri","phoiHop","coSo","ghiChu","pages","order","updatedAt"],
+    desc: "Kế hoạch – Công việc một lần"
+  },
+  ke_hoach_lap_lai: {
+    cols: ["id","name","allMonths","months","execDay","lastDay","chuTri","phoiHop","coSo","ghiChu","pages","updatedAt"],
+    desc: "Kế hoạch – Công việc lặp lại"
   },
   su_co: {
     cols: ["id","ngay","gio","loai","mo_ta","don_vi","nguoi_bao","xu_ly","trang_thai","ghi_chu","created_at"],
@@ -140,9 +144,27 @@ function _genId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
 
-function _getSheet(name) {
+/**
+ * Lấy sheet theo tên.
+ * - Nếu chưa tồn tại VÀ autoCreate=true → tạo mới với header từ SCHEMA (hoặc để trống header)
+ * - Nếu chưa tồn tại VÀ autoCreate=false → throw error (dùng cho read-only ops)
+ */
+function _getSheet(name, autoCreate) {
   var sh = SS.getSheetByName(name);
-  if (!sh) throw new Error("Sheet không tồn tại: " + name);
+  if (!sh) {
+    if (!autoCreate) throw new Error("Sheet không tồn tại: " + name);
+    sh = SS.insertSheet(name);
+    // Ghi header nếu có trong SCHEMA
+    var schema = SCHEMA[name];
+    if (schema && schema.cols && schema.cols.length) {
+      sh.appendRow(schema.cols);
+      var hr = sh.getRange(1, 1, 1, schema.cols.length);
+      hr.setBackground("#003087").setFontColor("#ffffff").setFontWeight("bold");
+      sh.setFrozenRows(1);
+      sh.autoResizeColumns(1, schema.cols.length);
+    }
+    Logger.log("✅ Tự động tạo sheet: " + name);
+  }
   return sh;
 }
 
@@ -233,7 +255,7 @@ function _handleGetById(params) {
 
 /** Thêm record mới */
 function _handleInsert(params, body) {
-  var sh = _getSheet(params.sheet);
+  var sh = _getSheet(params.sheet, true);
   var obj = body.data || body;
   if (!obj.id) obj.id = _genId();
   if (!obj.created_at) obj.created_at = new Date().toISOString();
@@ -245,7 +267,7 @@ function _handleInsert(params, body) {
 
 /** Cập nhật record theo id */
 function _handleUpdate(params, body) {
-  var sh = _getSheet(params.sheet);
+  var sh = _getSheet(params.sheet, true);
   var rowNum = _findRowById(sh, params.id);
   if (rowNum < 0) return { ok: false, error: "Không tìm thấy id=" + params.id };
   var existing = _sheetToObjects(sh).find(function(r) { return String(r.id) === String(params.id); });
@@ -268,13 +290,20 @@ function _handleDelete(params, body) {
 
 /** Ghi đè toàn bộ sheet (bulk replace) */
 function _handleBulkWrite(params, body) {
-  var sh = _getSheet(params.sheet);
-  var schema = SCHEMA[params.sheet];
+  var sh = _getSheet(params.sheet, true);
+  var rows = body.data || [];
+  // Nếu sheet hoàn toàn trống (chưa có header) → tạo header từ keys của row đầu tiên
+  if (sh.getLastRow() === 0 && rows.length > 0) {
+    var autoHeaders = Object.keys(rows[0]);
+    sh.appendRow(autoHeaders);
+    var hr = sh.getRange(1, 1, 1, autoHeaders.length);
+    hr.setBackground("#003087").setFontColor("#ffffff").setFontWeight("bold");
+    sh.setFrozenRows(1);
+  }
   // Xoá data cũ (giữ header)
   if (sh.getLastRow() > 1) {
     sh.deleteRows(2, sh.getLastRow() - 1);
   }
-  var rows = body.data || [];
   rows.forEach(function(obj) {
     if (!obj.id) obj.id = _genId();
     sh.appendRow(_objToRow(sh, obj));

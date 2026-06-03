@@ -257,9 +257,12 @@ var DB = (function() {
     if (!_url) return Promise.resolve(null);
     return getAll("users").then(function(rows) {
       if (rows && rows.length > 0) {
+        // Deduplicate theo username trước khi ghi vào localStorage
+        var seen = {}, deduped = [];
+        rows.forEach(function(r){ if(r.username && !seen[r.username]){ seen[r.username]=true; deduped.push(r); } });
         // Sheets có data → ghi đè localStorage
-        localStorage.setItem(lsKey, JSON.stringify(rows));
-        return rows;
+        localStorage.setItem(lsKey, JSON.stringify(deduped));
+        return deduped;
       } else {
         // Sheets trống → đẩy localStorage lên
         var local = [];
