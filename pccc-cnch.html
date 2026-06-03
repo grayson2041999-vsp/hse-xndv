@@ -538,7 +538,8 @@ var K_USERS   = "hse_users";
 var K_SESS    = "hse_session";
 var K_DEVICES = "hse_pccc_devices";
 var K_ERRORS  = "hse_pccc_errors";
-var K_LOCKED  = "hse_pccc_locked_months";
+var K_LOCKED        = "hse_pccc_locked_months";
+var K_LOCKED_SHEET  = "pccc_locked_months";
 
 function load(k,d){try{var v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}}
 function save(k,v){localStorage.setItem(k,JSON.stringify(v));}
@@ -638,12 +639,20 @@ function safePullDevices(){
 }
 function safePullErrors(){
   if(!DB||!DB.isReady()) return;
-  // Pull từ Sheets mỗi khi tải trang — cập nhật localStorage với dữ liệu mới nhất
-  // Vì đã dùng insert/update/delete (không bulkWrite), Sheets luôn là nguồn đúng nhất
   DB.getAll("pccc_errors").then(function(r){
     if(r&&r.length){
       save(K_ERRORS,r);
       populateMonthFilter();
+      renderErrorLog();
+    }
+  }).catch(function(){});
+}
+function safePullLockedMonths(){
+  if(!DB||!DB.isReady()) return;
+  DB.getAll(K_LOCKED_SHEET).then(function(r){
+    if(r!==null&&r!==undefined){
+      save(K_LOCKED, r||[]);
+      updateLockUI();
       renderErrorLog();
     }
   }).catch(function(){});
@@ -687,13 +696,25 @@ function toggleLockMonth(){
   var u=currentUser();
   if(locked){
     if(!confirm("Mở khoá Tháng "+fm+"/"+fy+"? User sẽ có thể chỉnh sửa lại dữ liệu tháng này.")) return;
-    save(K_LOCKED, getLockedMonths().filter(function(x){ return !(x.month===fm&&x.year===fy); }));
+    var lockId=fm+"-"+fy;
+    var newArr=getLockedMonths().filter(function(x){ return !(x.month===fm&&x.year===fy); });
+    save(K_LOCKED, newArr);
+    // Xóa khỏi Sheets
+    if(typeof DB!=="undefined"&&DB.isReady()){
+      DB.delete(K_LOCKED_SHEET, lockId).catch(function(){});
+    }
     showToast("🔓 Đã mở khoá Tháng "+fm+"/"+fy,"success");
   } else {
     if(!confirm("Khoá Tháng "+fm+"/"+fy+"? User sẽ không thể thêm/sửa/xóa bản ghi tháng này.")) return;
+    var lockId=fm+"-"+fy;
+    var lockItem={id:lockId, month:fm, year:fy, lockedAt:new Date().toISOString(), lockedBy:u?(u.fullname||u.username):"Admin"};
     var arr=getLockedMonths();
-    arr.push({month:fm, year:fy, lockedAt:new Date().toISOString(), lockedBy:u?(u.fullname||u.username):"Admin"});
+    arr.push(lockItem);
     save(K_LOCKED, arr);
+    // Ghi lên Sheets
+    if(typeof DB!=="undefined"&&DB.isReady()){
+      DB.insert(K_LOCKED_SHEET, lockItem).catch(function(){});
+    }
     showToast("🔒 Đã khoá Tháng "+fm+"/"+fy,"danger");
   }
   updateLockUI();
@@ -1598,6 +1619,7 @@ setTimeout(function(){
   if(typeof DB==="undefined"||!DB.isReady()) return;
   safePullDevices();
   safePullErrors();
+  safePullLockedMonths();
 },1500);
 </script>
 </body>
