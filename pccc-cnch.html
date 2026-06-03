@@ -638,10 +638,14 @@ function safePullDevices(){
 }
 function safePullErrors(){
   if(!DB||!DB.isReady()) return;
-  // Chỉ pull khi localStorage đang trống — tránh ghi đè dữ liệu mới hơn
-  if(getErrors().length>0) return;
+  // Pull từ Sheets mỗi khi tải trang — cập nhật localStorage với dữ liệu mới nhất
+  // Vì đã dùng insert/update/delete (không bulkWrite), Sheets luôn là nguồn đúng nhất
   DB.getAll("pccc_errors").then(function(r){
-    if(r&&r.length){ save(K_ERRORS,r); populateMonthFilter(); renderErrorLog(); }
+    if(r&&r.length){
+      save(K_ERRORS,r);
+      populateMonthFilter();
+      renderErrorLog();
+    }
   }).catch(function(){});
 }
 
@@ -906,8 +910,15 @@ function saveDevice(){
   saveDevices(data);
   // Sheets: insert hoặc update từng record, không bulkWrite
   if(typeof DB!=="undefined"&&DB.isReady()&&item){
-    var op=isNew ? DB.insert("pccc_devices",item) : DB.update("pccc_devices",item.id,{name:name,location:location});
-    op.then(function(){ _dbToast(true,"Hệ thống"); }).catch(function(e){ _dbToast(false,e&&e.message||""); });
+    var _devOp=isNew
+      ? DB.insert("pccc_devices",item)
+      : DB.update("pccc_devices",item.id,{name:name,location:location}).catch(function(e){
+          if(e&&e.message&&e.message.indexOf("tìm thấy")>=0)
+            return DB.insert("pccc_devices",item);
+          throw e;
+        });
+    _devOp.then(function(){ _dbToast(true,"Hệ thống"); })
+          .catch(function(e){ _dbToast(false,e&&e.message||""); });
   }
   closeDeviceModal();
   renderDevices();
@@ -1059,9 +1070,17 @@ function saveError(){
   } else { data.push(item); }
   saveErrors(data);
   // Sheets: insert hoặc update từng record, không bulkWrite
+  // Nếu update thất bại vì record chưa có trong Sheets → tự động insert (upsert)
   if(typeof DB!=="undefined"&&DB.isReady()){
-    var op=isNew ? DB.insert("pccc_errors",item) : DB.update("pccc_errors",item.id,item);
-    op.then(function(){ _dbToast(true,"Bản ghi"); }).catch(function(e){ _dbToast(false,e&&e.message||""); });
+    var _sheetsOp=isNew
+      ? DB.insert("pccc_errors",item)
+      : DB.update("pccc_errors",item.id,item).catch(function(e){
+          if(e&&e.message&&e.message.indexOf("tìm thấy")>=0)
+            return DB.insert("pccc_errors",item);
+          throw e;
+        });
+    _sheetsOp.then(function(){ _dbToast(true,"Bản ghi"); })
+             .catch(function(e){ _dbToast(false,e&&e.message||""); });
   }
   populateMonthFilter();
   renderErrorLog();
