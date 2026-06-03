@@ -150,6 +150,9 @@
     .report-preview tr:last-child td{border-bottom:none;}
     .section-divider{font-size:11px;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 6px;padding-bottom:4px;border-bottom:1.5px solid var(--border);}
 
+    /* KẾ HOẠCH LIÊN QUAN sub-section header */
+    .kh-sub-header{font-size:12px;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;padding-bottom:6px;border-bottom:1.5px solid var(--border);}
+
     @media(max-width:768px){
       .sidebar{transform:translateX(-100%);}
       .main{margin-left:0;padding:72px 14px 24px;}
@@ -177,6 +180,7 @@
     <div class="tab-bar">
       <button class="tab-btn active" onclick="switchTab('bctd')">🔔 Hệ thống báo cháy tự động</button>
       <button class="tab-btn" onclick="switchTab('phuongtien')">🚒 Phương tiện CC & CNCH</button>
+      <button class="tab-btn" onclick="switchTab('kehoach')" id="tabBtnKeHoach">🗓️ Kế hoạch liên quan <span id="khBadge" style="display:none;background:var(--accent);color:#fff;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:700;margin-left:4px"></span></button>
     </div>
 
     <!-- TAB 1: HỆ THỐNG BCTD -->
@@ -209,8 +213,14 @@
       <div id="errorLogSection">
         <div class="section-card">
           <div class="section-card-head">
-            <div class="section-card-title">📋 Nhật ký báo lỗi hệ thống BCTĐ</div>
-            <button class="btn btn-outline btn-sm" id="btnReport" onclick="openReportModal()" style="display:none">📄 Tạo báo cáo</button>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <div class="section-card-title">📋 Nhật ký báo lỗi hệ thống BCTĐ</div>
+              <span id="syncStatus" style="font-size:11.5px;padding:2px 8px;border-radius:10px;font-weight:600;"></span>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <button class="btn btn-outline btn-sm" onclick="manualSync()" title="Kiểm tra kết nối và đồng bộ dữ liệu với Google Sheets">🔄 Sync</button>
+              <button class="btn btn-outline btn-sm" id="btnReport" onclick="openReportModal()" style="display:none">📄 Tạo báo cáo</button>
+            </div>
             <div style="display:flex;gap:8px;align-items:center;">
               <div class="month-filter" style="margin-bottom:0;padding:6px 12px;box-shadow:none;border:1.5px solid var(--border);border-radius:8px;">
                 <label>Lọc tháng:</label>
@@ -253,6 +263,62 @@
         <p>Mục <b>Phương tiện CC & CNCH</b> đang được phát triển và sẽ được bổ sung trong phiên bản tiếp theo.</p>
       </div>
     </div>
+
+    <!-- TAB 3: KẾ HOẠCH LIÊN QUAN -->
+    <div class="tab-pane" id="tab-kehoach">
+      <div class="section-card">
+        <div class="section-card-head">
+          <div class="section-card-title">🗓️ Công việc Kế hoạch liên quan đến PCCC &amp; CNCH</div>
+          <a href="ke-hoach.html" class="btn btn-outline btn-sm">↗ Mở trang Kế hoạch</a>
+        </div>
+        <div id="khEmptyMsg" class="info-box" style="display:none">
+          Chưa có công việc nào trong Kế hoạch được gán cho trang PCCC &amp; CNCH.
+          Vào <a href="ke-hoach.html" style="color:var(--primary);font-weight:600">trang Kế hoạch</a> để thêm và chọn <b>PCCC &amp; CNCH</b> trong mục "Trang liên quan".
+        </div>
+
+        <!-- Công việc một lần -->
+        <div id="khOnceSection">
+          <div class="kh-sub-header">📌 Công việc một lần</div>
+          <div class="table-wrap" style="margin-bottom:18px">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:32px">#</th>
+                  <th>Nội dung công việc</th>
+                  <th style="width:130px">Tình trạng</th>
+                  <th>Đơn vị chủ trì</th>
+                  <th>Bắt đầu</th>
+                  <th>Kết thúc</th>
+                  <th>Ghi chú</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyKhOnce"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Công việc lặp lại -->
+        <div id="khRecurSection">
+          <div class="kh-sub-header">🔁 Công việc lặp lại</div>
+          <div class="table-wrap" style="margin-bottom:0">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:32px">#</th>
+                  <th>Nội dung công việc</th>
+                  <th>Tháng áp dụng</th>
+                  <th>Ngày thực hiện</th>
+                  <th>Đơn vị chủ trì</th>
+                  <th>Ghi chú</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyKhRecur"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -475,9 +541,7 @@ function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 function fmtDate(s){
   if(!s)return"—";
-  // Sheets trả về ISO datetime "2026-01-18T17:00:00.000Z" → chỉ lấy phần ngày
   if(typeof s==="string"&&s.indexOf("T")>=0) s=s.split("T")[0];
-  // Sheets đôi khi trả về Date object
   if(s instanceof Date) s=s.toISOString().split("T")[0];
   var p=String(s).split("-");
   return p.length===3?p[2]+"/"+p[1]+"/"+p[0]:s;
@@ -539,25 +603,65 @@ function buildTopbar(){
 /* ---- TABS ---- */
 function switchTab(tab){
   document.querySelectorAll('.tab-btn').forEach(function(b,i){
-    b.classList.toggle('active',(tab==='bctd'?i===0:i===1));
+    b.classList.toggle('active',(tab==='bctd'?i===0:tab==='phuongtien'?i===1:i===2));
   });
   document.getElementById('tab-bctd').classList.toggle('active',tab==='bctd');
   document.getElementById('tab-phuongtien').classList.toggle('active',tab==='phuongtien');
+  document.getElementById('tab-kehoach').classList.toggle('active',tab==='kehoach');
+  if(tab==='kehoach') renderKeHoachLinks();
 }
 
 /* ---- DATA ---- */
 function getDevices(){return load(K_DEVICES,[]);}
 function getErrors(){return load(K_ERRORS,[]);}
 
+var K_DEVICES_DIRTY = "hse_pccc_devices_dirty";
+var K_ERRORS_DIRTY  = "hse_pccc_errors_dirty";
+
 function saveDevices(data){
+  save(K_DEVICES, data);
+  save(K_DEVICES_DIRTY, true);
   if(typeof DB!=="undefined"&&DB.isReady()){
-    DB.cachedSave(K_DEVICES,"pccc_devices",data);
-  } else { save(K_DEVICES,data); }
+    DB.bulkWrite("pccc_devices", data)
+      .then(function(){ save(K_DEVICES_DIRTY, false); showToast("☁️ Đã đồng bộ hệ thống lên Sheets","info"); })
+      .catch(function(e){ showToast("⚠️ Lưu local OK, chưa sync Sheets: "+(e&&e.message||""),"warning"); });
+  }
 }
 function saveErrors(data){
+  save(K_ERRORS, data);
+  save(K_ERRORS_DIRTY, true);
   if(typeof DB!=="undefined"&&DB.isReady()){
-    DB.cachedSave(K_ERRORS,"pccc_errors",data);
-  } else { save(K_ERRORS,data); }
+    DB.bulkWrite("pccc_errors", data)
+      .then(function(){ save(K_ERRORS_DIRTY, false); showToast("☁️ Đã đồng bộ nhật ký lên Sheets","info"); })
+      .catch(function(e){ showToast("⚠️ Lưu local OK, chưa sync Sheets: "+(e&&e.message||""),"warning"); });
+  }
+}
+
+function safePullDevices(){
+  if(!DB||!DB.isReady()) return;
+  var dirty=load(K_DEVICES_DIRTY,false);
+  if(dirty){
+    DB.bulkWrite("pccc_devices", getDevices())
+      .then(function(){ save(K_DEVICES_DIRTY,false); })
+      .catch(function(){});
+    return;
+  }
+  DB.getAll("pccc_devices").then(function(r){
+    if(r&&r.length){ save(K_DEVICES,r); renderDevices(); populateDeviceSelect(); }
+  }).catch(function(){});
+}
+function safePullErrors(){
+  if(!DB||!DB.isReady()) return;
+  var dirty=load(K_ERRORS_DIRTY,false);
+  if(dirty){
+    DB.bulkWrite("pccc_errors", getErrors())
+      .then(function(){ save(K_ERRORS_DIRTY,false); })
+      .catch(function(){});
+    return;
+  }
+  DB.getAll("pccc_errors").then(function(r){
+    if(r!==null&&r!==undefined){ save(K_ERRORS,r||[]); populateMonthFilter(); renderErrorLog(); }
+  }).catch(function(){});
 }
 
 /* ---- RENDER DEVICES (Admin) ---- */
@@ -635,6 +739,90 @@ function populateMonthFilter(){
   selY.innerHTML=years.map(function(y){
     return '<option value="'+y+'"'+(String(y)===(curY||String(now.getFullYear()))?' selected':'')+'>'+y+'</option>';
   }).join("");
+}
+
+/* ================================================================
+   KẾ HOẠCH LIÊN QUAN – Đọc từ hse_ke_hoach_links
+   ================================================================ */
+function renderKeHoachLinks(){
+  var allLinks=load("hse_ke_hoach_links",{});
+  var items=allLinks["pccc-cnch"]||[];
+  var onceItems=items.filter(function(x){return x.type==="oncetime";});
+  var recurItems=items.filter(function(x){return x.type==="recurring";});
+
+  // Badge số lượng trên tab button
+  var badge=document.getElementById("khBadge");
+  if(badge){
+    if(items.length>0){badge.textContent=items.length;badge.style.display="";}
+    else{badge.style.display="none";}
+  }
+
+  // Thông báo trống
+  var emptyMsg=document.getElementById("khEmptyMsg");
+  if(emptyMsg) emptyMsg.style.display=items.length?"none":"block";
+
+  // Lấy status từ localStorage gốc (hse_ke_hoach_mot_lan lưu đầy đủ thông tin)
+  var onceData=load("hse_ke_hoach_mot_lan",[]);
+  function getStatus(id){
+    var x=onceData.find(function(d){return d.id===id;});
+    if(!x)return"Chưa bắt đầu";
+    if((x.status||"")==="Đã hoàn thành")return"Đã hoàn thành";
+    if(x.end){var today=new Date();today.setHours(0,0,0,0);if(new Date(x.end)<today)return"Trễ hạn";}
+    return x.status||"Chưa bắt đầu";
+  }
+  function statusBadge(st){
+    var map={"Trễ hạn":"badge-red","Đang thực hiện":"badge-orange","Chưa bắt đầu":"badge-gray","Đã hoàn thành":"badge-green"};
+    return'<span class="badge '+(map[st]||"badge-gray")+'">'+esc(st)+'</span>';
+  }
+  function fmtD(s){if(!s)return"—";var p=String(s).split("-");return p.length===3?p[2]+"/"+p[1]+"/"+p[0]:s;}
+
+  // Render công việc một lần
+  var tbOnce=document.getElementById("tbodyKhOnce");
+  if(tbOnce){
+    if(!onceItems.length){
+      tbOnce.innerHTML='<tr class="empty-row"><td colspan="7">Chưa có công việc một lần nào liên quan đến PCCC &amp; CNCH.</td></tr>';
+    } else {
+      tbOnce.innerHTML=onceItems.map(function(x,i){
+        var st=getStatus(x.id);
+        return'<tr>'+
+          '<td style="color:var(--text-light);font-size:12px">'+(i+1)+'</td>'+
+          '<td style="font-weight:600;max-width:220px">'+esc(x.name)+'</td>'+
+          '<td>'+statusBadge(st)+'</td>'+
+          '<td style="font-size:12.5px">'+esc(x.chuTri||"—")+'</td>'+
+          '<td style="white-space:nowrap"><span class="badge badge-blue">'+fmtD(x.start)+'</span></td>'+
+          '<td style="white-space:nowrap"><span class="badge badge-orange">'+fmtD(x.end)+'</span></td>'+
+          '<td style="font-size:12px;color:var(--text-light);max-width:160px">'+esc(x.ghiChu||"—")+'</td>'+
+          '</tr>';
+      }).join("");
+    }
+  }
+
+  // Render công việc lặp lại
+  var tbRecur=document.getElementById("tbodyKhRecur");
+  if(tbRecur){
+    if(!recurItems.length){
+      tbRecur.innerHTML='<tr class="empty-row"><td colspan="6">Chưa có công việc lặp lại nào liên quan đến PCCC &amp; CNCH.</td></tr>';
+    } else {
+      tbRecur.innerHTML=recurItems.map(function(x,i){
+        var months=x.allMonths
+          ?'<span class="badge badge-green">📅 Hàng tháng</span>'
+          :((x.months||[]).length
+            ?x.months.map(function(m){return'<span class="badge badge-gray" style="margin:1px;font-size:11px">T'+m+'</span>';}).join("")
+            :'<span style="color:var(--text-light)">—</span>');
+        var dayLabel=x.lastDay
+          ?'<span class="badge badge-orange">Cuối tháng</span>'
+          :(x.execDay?'<span class="badge badge-blue">Ngày '+x.execDay+'</span>':'<span style="color:var(--text-light)">—</span>');
+        return'<tr>'+
+          '<td style="color:var(--text-light);font-size:12px">'+(i+1)+'</td>'+
+          '<td style="font-weight:600;max-width:220px">'+esc(x.name)+'</td>'+
+          '<td>'+months+'</td>'+
+          '<td>'+dayLabel+'</td>'+
+          '<td style="font-size:12.5px">'+esc(x.chuTri||"—")+'</td>'+
+          '<td style="font-size:12px;color:var(--text-light);max-width:160px">'+esc(x.ghiChu||"—")+'</td>'+
+          '</tr>';
+      }).join("");
+    }
+  }
 }
 
 /* ================================================================
@@ -751,7 +939,6 @@ function updateDateRange(){
   var inp=document.getElementById("eDetectDate");
   inp.min=firstDay;
   inp.max=lastDayStr;
-  // Reset nếu ngày hiện tại nằm ngoài tháng
   if(inp.value&&(inp.value<firstDay||inp.value>lastDayStr)) inp.value="";
 }
 
@@ -760,7 +947,6 @@ function toggleCustomErr(){
   var cg=document.getElementById("customErrGroup");
   var dg=document.getElementById("detectDateGroup");
   cg.style.display=v==="Khác"?"block":"none";
-  // Adjust grid: nếu hiện customErrGroup thì detectDate xuống dòng mới
   cg.parentElement.style.gridTemplateColumns=v==="Khác"?"1fr 1fr":"1fr 1fr";
 }
 
@@ -828,11 +1014,9 @@ function setupRoleUI(){
   var u=currentUser();
   var adm=isAdmin(u);
   var editable=u&&canEdit(u);
-  // Admin: hiện section quản lý thiết bị + nút tạo báo cáo
   document.getElementById("adminDeviceSection").style.display=adm?"block":"none";
   var btnR=document.getElementById("btnReport");
   if(btnR) btnR.style.display=adm?"":"none";
-  // Viewer/guest: ẩn nút nhập báo lỗi
   var btn=document.getElementById("btnAddError");
   if(btn) btn.style.display=editable?"":"none";
 }
@@ -899,7 +1083,6 @@ document.getElementById("reportModalBg").addEventListener("click",function(e){if
 function openReportModal(){
   populateReportSelects();
   previewReportData();
-  // Pre-fill người thực hiện từ user đang đăng nhập
   var u=currentUser();
   document.getElementById("rPreparedBy").value=u?(u.fullname||u.username):"";
   document.getElementById("rNewDevices").value="";
@@ -963,12 +1146,10 @@ function generateReport(){
   var btn=document.getElementById("btnGenReport");
   btn.disabled=true; btn.textContent="⏳ Đang tạo...";
 
-  // Lazy-load docx library từ CDN
   if(!window.docxLoaded){
     var s=document.createElement("script");
     s.src="assets/docx.iife.js";
     s.onload=function(){
-      // IIFE build khai báo `var docx` ở global scope
       if(typeof docx==="undefined"){
         showToast("❌ Thư viện tải nhưng không khởi tạo được. Thử lại.","danger");
         btn.disabled=false; btn.textContent="📥 Xuất báo cáo .docx";
@@ -988,7 +1169,6 @@ function generateReport(){
 }
 
 function _buildAndDownload(m,y,errors,devices,newDevices,noSystem,preparedBy,btn){
-  // Fetch logo image trước, sau đó build docx
   fetch("assets/vsp_logo_bctd.jpeg")
     .then(function(r){return r.arrayBuffer();})
     .catch(function(){return null;})
@@ -1006,8 +1186,7 @@ function _doBuild(m,y,errors,devices,newDevices,noSystem,preparedBy,btn,logoBuff
 
     var TW=9355;
     var COLS=[564,1705,1249,1556,1945,2336];
-    // Chiều rộng header table (logo + text) = toàn trang kể cả margin trái
-    var HDR_LOGO_W=2010; var HDR_TEXT_W=7498; // ≈ 9508 tổng
+    var HDR_LOGO_W=2010; var HDR_TEXT_W=7498;
 
     function fmtD(s){ if(!s)return""; if(typeof s==="string"&&s.indexOf("T")>=0)s=s.split("T")[0]; var p=String(s).split("-"); return p.length===3?p[2]+"/"+p[1]+"/"+p[0]:s; }
 
@@ -1045,7 +1224,6 @@ function _doBuild(m,y,errors,devices,newDevices,noSystem,preparedBy,btn,logoBuff
       });
     }
 
-    /* ---- HEADER TABLE: Logo | QUY ĐỊNH text ---- */
     var logoCell;
     if(logoBuffer){
       logoCell=new D.TableCell({
@@ -1097,7 +1275,6 @@ function _doBuild(m,y,errors,devices,newDevices,noSystem,preparedBy,btn,logoBuff
       rows:[new D.TableRow({children:[logoCell,textCell]})]
     });
 
-    /* ---- ERROR ROWS ---- */
     var errRows=[
       new D.TableRow({tableHeader:true,children:[
         hCell("Stt\nП.п",COLS[0]),
@@ -1109,8 +1286,7 @@ function _doBuild(m,y,errors,devices,newDevices,noSystem,preparedBy,btn,logoBuff
       ]})
     ];
     if(errors.length){
-      // Gộp các lỗi cùng hệ thống để dùng rowspan
-      var grouped=[]; // [{deviceId, dev, items:[...]}]
+      var grouped=[];
       errors.forEach(function(e){
         var g=grouped.find(function(x){return x.deviceId===e.deviceId;});
         if(g){g.items.push(e);}
@@ -1127,7 +1303,6 @@ function _doBuild(m,y,errors,devices,newDevices,noSystem,preparedBy,btn,logoBuff
           rowNum++;
           var eLabel=e.errType==="Khác"?(e.errCustom||"Khác"):"Báo lỗi"+(e.childDevice?" "+e.childDevice:"")+(e.devLocation?" – "+e.devLocation:"");
           var rowCells=[];
-          // STT: chỉ hiện ở hàng đầu của nhóm, dùng rowSpan
           if(idx===0){
             rowCells.push(new D.TableCell({borders:allB,width:{size:COLS[0],type:D.WidthType.DXA},
               rowSpan:g.items.length,margins:{top:60,bottom:60,left:80,right:80},
@@ -1135,14 +1310,12 @@ function _doBuild(m,y,errors,devices,newDevices,noSystem,preparedBy,btn,logoBuff
               children:[new D.Paragraph({alignment:D.AlignmentType.CENTER,
                 children:[new D.TextRun({text:String(rowNum-(g.items.length-1)),size:20,font:"Times New Roman"})]})]
             }));
-            // Tên hệ thống — rowSpan
             rowCells.push(new D.TableCell({borders:allB,width:{size:COLS[1],type:D.WidthType.DXA},
               rowSpan:g.items.length,margins:{top:60,bottom:60,left:80,right:80},
               verticalAlign:D.VerticalAlign.CENTER,
               children:[new D.Paragraph({
                 children:[new D.TextRun({text:devLabel,bold:true,size:20,font:"Times New Roman"})]})]
             }));
-            // Vị trí lắp đặt (hệ thống) — rowSpan
             rowCells.push(new D.TableCell({borders:allB,width:{size:COLS[2],type:D.WidthType.DXA},
               rowSpan:g.items.length,margins:{top:60,bottom:60,left:80,right:80},
               verticalAlign:D.VerticalAlign.CENTER,
@@ -1150,7 +1323,6 @@ function _doBuild(m,y,errors,devices,newDevices,noSystem,preparedBy,btn,logoBuff
                 children:[new D.TextRun({text:dev.location||"",size:20,font:"Times New Roman"})]})]
             }));
           }
-          // Tình trạng, ngày, biện pháp (mỗi hàng)
           rowCells.push(dCell(eLabel,COLS[3]));
           rowCells.push(dCell(fmtD(e.detectDate),COLS[4],true));
           rowCells.push(dCell(e.measure||"",COLS[5]));
@@ -1168,17 +1340,10 @@ function _doBuild(m,y,errors,devices,newDevices,noSystem,preparedBy,btn,logoBuff
       ]}));
     }
 
-    /* ---- SIGNATURE TABLE ----
-       Layout theo mẫu:
-       - Cột giữa-phải: Giám đốc XNDV / Директор ПОСОМ  (căn giữa, chữ đậm)
-       - Dưới trái:     Ký tắt / Phòng Kỹ thuật – Vật tư (đậm, gạch dưới)
-       - Dưới trái:     Thực hiện/ Выпол.: [tên]          (đậm nghiêng)
-    ---- */
     var sigTable=new D.Table({
       width:{size:TW,type:D.WidthType.DXA},
       columnWidths:[Math.floor(TW*0.45), Math.floor(TW*0.55)],
       rows:[
-        // Row 1: trống trái | Giám đốc XNDV phải
         new D.TableRow({children:[
           new D.TableCell({borders:noB,width:{size:Math.floor(TW*0.45),type:D.WidthType.DXA},
             children:[new D.Paragraph({children:[new D.TextRun({text:""})]})]
@@ -1193,7 +1358,6 @@ function _doBuild(m,y,errors,devices,newDevices,noSystem,preparedBy,btn,logoBuff
             ]
           })
         ]}),
-        // Row 2: khoảng trống cho ký
         new D.TableRow({children:[
           new D.TableCell({borders:noB,width:{size:Math.floor(TW*0.45),type:D.WidthType.DXA},
             children:[new D.Paragraph({spacing:{before:0,after:0},children:[new D.TextRun({text:"",size:24})]}),
@@ -1212,34 +1376,26 @@ function _doBuild(m,y,errors,devices,newDevices,noSystem,preparedBy,btn,logoBuff
     var doc=new D.Document({sections:[{
       properties:{page:{size:{width:11907,height:16840},margin:{top:851,right:992,bottom:709,left:1560}}},
       children:[
-        // Header box
         headerTable,
         pr([],{after:160}),
-        // Title
         pr([run("BÁO CÁO TÌNH TRẠNG HOẠT ĐỘNG CỦA",{bold:true,size:26})],{align:D.AlignmentType.CENTER,after:20}),
         pr([run("HỆ THỐNG BÁO CHÁY TỰ ĐỘNG",{bold:true,size:26})],{align:D.AlignmentType.CENTER,after:40}),
         pr([run("Отчет о техническом состоянии системы АПС",{bold:true,size:22})],{align:D.AlignmentType.CENTER,after:60}),
         pr([run("Tháng/Месяц      "+m+"/"+y,{size:24})],{align:D.AlignmentType.CENTER,after:40}),
         pr([run("Đơn vị/Предприятие: XN Dịch vụ / ПОСОМ",{size:24})],{align:D.AlignmentType.CENTER,after:200}),
-        // Section 1
         pr([run("1.  Các thiết bị hư hỏng/báo lỗi/",{bold:true})],{after:0}),
         pr([run("    Выявленные отказы, повреждения оборудований:",{bold:true})],{after:100}),
         new D.Table({width:{size:TW,type:D.WidthType.DXA},columnWidths:COLS,rows:errRows}),
-        // Section 2
         pr([run("2.  Các thiết bị mới lắp đặt/cải tạo lại chưa đưa vào hoạt động: ",{bold:true})],{before:240,after:0}),
         pr([run("    Установка нового оборудования/ модернизация без ввода в эксплуатацию:",{size:22})],{after:80}),
         pr([run(newDevices||"",{size:24})],{after:200}),
-        // Section 3
         pr([run("3.  Các công trình chưa được lắp đặt hệ thống báo cháy tự động:",{bold:true})],{after:0}),
         pr([run("    Объекты, на которых не установлена система АПС:",{size:22})],{after:80}),
         pr([run(noSystem||"",{size:24})],{after:600}),
-        // Signatures — Giám đốc XNDV
         sigTable,
         pr([],{after:240}),
-        // Ký tắt / Phòng Kỹ thuật
         pr([run("Ký tắt",{bold:true,underline:true})],{after:0}),
         pr([run("Phòng Kỹ thuật – Vật tư",{bold:true,underline:true})],{after:240}),
-        // Thực hiện
         pr([run("Thực hiện/ Выпол.: ",{bold:true,italic:true}),run(preparedBy,{bold:true,italic:true})],{after:0}),
       ]
     }]});
@@ -1264,6 +1420,44 @@ function _doBuild(m,y,errors,devices,newDevices,noSystem,preparedBy,btn,logoBuff
   }
 }
 
+/* ---- SYNC STATUS ---- */
+function updateSyncStatus(){
+  var el=document.getElementById("syncStatus");
+  if(!el)return;
+  var dbOk=typeof DB!=="undefined"&&DB.isReady();
+  var dirty=load(K_ERRORS_DIRTY,false);
+  if(!dbOk){
+    el.textContent="⚠️ Chưa kết nối Sheets";
+    el.style.background="#fef5e4"; el.style.color="#e68900";
+  } else if(dirty){
+    el.textContent="🔴 Chưa sync";
+    el.style.background="#fdedec"; el.style.color="#c0392b";
+  } else {
+    el.textContent="🟢 Đã sync";
+    el.style.background="#eafaf1"; el.style.color="#1a7a3c";
+  }
+}
+
+function manualSync(){
+  var el=document.getElementById("syncStatus");
+  if(el){el.textContent="⏳ Đang kiểm tra...";el.style.background="#dceaf7";el.style.color="#003087";}
+  if(typeof DB==="undefined"||!DB.isReady()){
+    showToast("❌ Chưa cấu hình URL Google Sheets. Vào Quản trị hệ thống → Cài đặt DB.","danger");
+    updateSyncStatus(); return;
+  }
+  DB.testConnection().then(function(){
+    var p1=DB.bulkWrite("pccc_devices", getDevices()).then(function(){save(K_DEVICES_DIRTY,false);});
+    var p2=DB.bulkWrite("pccc_errors",  getErrors()).then(function(){save(K_ERRORS_DIRTY,false);});
+    return Promise.all([p1,p2]);
+  }).then(function(){
+    showToast("✅ Sync thành công — Sheets đã được cập nhật","success");
+    updateSyncStatus();
+  }).catch(function(e){
+    showToast("❌ Lỗi kết nối Sheets: "+(e&&e.message||"Không rõ nguyên nhân"),"danger");
+    updateSyncStatus();
+  });
+}
+
 /* ---- INIT ---- */
 seedUsers();
 if(typeof DB!=="undefined"){
@@ -1277,11 +1471,14 @@ setupRoleUI();
 populateMonthFilter();
 renderDevices();
 renderErrorLog();
+renderKeHoachLinks();
+updateSyncStatus();
 // Pull từ Sheets
 setTimeout(function(){
-  if(typeof DB==="undefined"||!DB.isReady())return;
-  DB.getAll("pccc_devices").then(function(r){if(r&&r.length){save(K_DEVICES,r);renderDevices();populateDeviceSelect();}}).catch(function(){});
-  DB.getAll("pccc_errors").then(function(r){if(r&&r.length){save(K_ERRORS,r);populateMonthFilter();renderErrorLog();}}).catch(function(){});
+  if(typeof DB==="undefined"||!DB.isReady()){ updateSyncStatus(); return; }
+  safePullDevices();
+  safePullErrors();
+  setTimeout(updateSyncStatus, 3000);
 },1500);
 </script>
 </body>

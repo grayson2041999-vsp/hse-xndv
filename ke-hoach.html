@@ -356,7 +356,7 @@ function load(k,d){try{var v=localStorage.getItem(k);return v?JSON.parse(v):d;}c
 function save(k,v){localStorage.setItem(k,JSON.stringify(v));}
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
-function fmtDate(s){if(!s)return"—";var p=s.split("-");return p.length===3?p[2]+"/"+p[1]+"/"+p[0]:s;}
+function fmtDate(s){if(!s)return"—";if(typeof s==="string"&&s.indexOf("T")>=0)s=s.split("T")[0];if(s instanceof Date)s=s.toISOString().split("T")[0];var p=String(s).split("-");return p.length===3?p[2]+"/"+p[1]+"/"+p[0]:s;}
 
 /* -------- AUTH -------- */
 function seedUsers(){
@@ -449,7 +449,13 @@ function saveRecur(data){
 function loadOnceFromSheets(){
   if(typeof DB==="undefined"||!DB.isReady())return;
   DB.getAll("ke_hoach_mot_lan").then(function(rows){
-    if(rows&&rows.length){ save(K_ONCETIME,rows); renderTable("oncetime"); }
+    if(rows&&rows.length){
+      rows.forEach(function(r){
+        if(r.start&&typeof r.start==="string"&&r.start.indexOf("T")>=0) r.start=r.start.split("T")[0];
+        if(r.end  &&typeof r.end  ==="string"&&r.end  .indexOf("T")>=0) r.end  =r.end  .split("T")[0];
+      });
+      save(K_ONCETIME,rows); renderTable("oncetime");
+    }
   }).catch(function(){});
 }
 function loadRecurFromSheets(){
