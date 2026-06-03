@@ -696,7 +696,7 @@ function toggleLockMonth(){
   var u=currentUser();
   if(locked){
     if(!confirm("Mở khoá Tháng "+fm+"/"+fy+"? User sẽ có thể chỉnh sửa lại dữ liệu tháng này.")) return;
-    var lockId=fm+"-"+fy;
+    var lockId="lock-"+fm+"-"+fy;
     var newArr=getLockedMonths().filter(function(x){ return !(x.month===fm&&x.year===fy); });
     save(K_LOCKED, newArr);
     // Xóa khỏi Sheets
@@ -706,7 +706,7 @@ function toggleLockMonth(){
     showToast("🔓 Đã mở khoá Tháng "+fm+"/"+fy,"success");
   } else {
     if(!confirm("Khoá Tháng "+fm+"/"+fy+"? User sẽ không thể thêm/sửa/xóa bản ghi tháng này.")) return;
-    var lockId=fm+"-"+fy;
+    var lockId="lock-"+fm+"-"+fy;
     var lockItem={id:lockId, month:fm, year:fy, lockedAt:new Date().toISOString(), lockedBy:u?(u.fullname||u.username):"Admin"};
     var arr=getLockedMonths();
     arr.push(lockItem);
