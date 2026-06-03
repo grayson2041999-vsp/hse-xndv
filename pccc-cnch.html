@@ -1016,15 +1016,11 @@ function populateYearMonthSelect(){
 }
 
 function updateDateRange(){
-  var m=parseInt(document.getElementById("eMonth").value)||1;
-  var y=parseInt(document.getElementById("eYear").value)||(new Date().getFullYear());
-  var firstDay=y+"-"+String(m).padStart(2,"0")+"-01";
-  var lastDay=new Date(y,m,0).getDate();
-  var lastDayStr=y+"-"+String(m).padStart(2,"0")+"-"+String(lastDay).padStart(2,"0");
+  // Bỏ ràng buộc min/max — ngày phát hiện có thể nằm ngoài tháng báo cáo
+  // (lỗi phát hiện tháng trước nhưng ghi nhận vào tháng sau là hợp lệ)
   var inp=document.getElementById("eDetectDate");
-  inp.min=firstDay;
-  inp.max=lastDayStr;
-  if(inp.value&&(inp.value<firstDay||inp.value>lastDayStr)) inp.value="";
+  inp.removeAttribute("min");
+  inp.removeAttribute("max");
 }
 
 function toggleCustomErr(){
