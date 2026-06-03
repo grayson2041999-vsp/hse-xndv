@@ -171,8 +171,8 @@
 
   <header class="topbar">
     <div>
-      <div style="font-size:15px;font-weight:700;">🧯 PCCC & CNCH</div>
-      <div style="font-size:11px;opacity:.75;">Xí nghiệp Dịch vụ Cảng · Vietsovpetro</div>
+      <div style="font-size:11px;opacity:.75;">Liên doanh Việt - Nga Vietsovpetro</div>
+      <div style="font-size:12px;font-weight:700;opacity:.95;">Xí nghiệp Dịch vụ Cảng và Cung ứng vật tư thiết bị</div>
     </div>
     <div class="topbar-right" id="topbarRight"></div>
   </header>
@@ -736,6 +736,15 @@ function updateLockUI(){
   if(btnAdd) btnAdd.style.display=(editable&&!locked)?"":"none";
 }
 
+/* ---- KIỂM TRA QUYỀN SỞ HỮU BẢN GHI ---- */
+function isOwner(rec){
+  var u=currentUser();
+  if(!u||!rec) return false;
+  if(isAdmin(u)) return true; // Admin luôn có quyền
+  // So sánh theo fullname hoặc username
+  return (u.fullname&&rec.createdBy===u.fullname) || rec.createdBy===u.username;
+}
+
 /* ---- RENDER ERROR LOG ---- */
 function renderErrorLog(){
   var u=currentUser();
@@ -755,10 +764,13 @@ function renderErrorLog(){
     var dev=devices.find(function(d){return d.id===x.deviceId;})||{};
     var errLabel=x.errType==="Khác"?(x.errCustom||"Khác"):"Báo lỗi"+(x.childDevice?" "+x.childDevice:"")+(x.devLocation?" – "+x.devLocation:"");
     var rowLocked=isMonthLocked(x.month,x.year);
-    var btns=(editable&&!rowLocked)?
-      '<button class="btn btn-edit btn-sm" onclick="openErrorModal(\''+x.id+'\')">✏️</button> '+
-      '<button class="btn btn-danger btn-sm" onclick="deleteError(\''+x.id+'\')">🗑️</button>':
-      (rowLocked?'<span style="font-size:11px;color:var(--danger)">🔒</span>':'');
+    var canEditRow=editable&&!rowLocked&&isOwner(x);
+    var btns=rowLocked
+      ?'<span style="font-size:11px;color:var(--danger)">🔒</span>'
+      :(canEditRow
+        ?'<button class="btn btn-edit btn-sm" onclick="openErrorModal(\''+x.id+'\')">✏️</button> '+
+         '<button class="btn btn-danger btn-sm" onclick="deleteError(\''+x.id+'\')">🗑️</button>'
+        :(editable?'<span style="font-size:11px;color:var(--text-light)" title="Bạn không thể sửa bản ghi của người khác">—</span>':''));
     var parentLabel=esc(dev.name||x.deviceId);
     var childLabel=esc(x.childDevice||"—")+(x.devLocation?' – <span style="color:var(--text-light)">'+esc(x.devLocation)+'</span>':"");
     return '<tr>'+
@@ -1043,6 +1055,10 @@ function saveError(){
   var u=currentUser();
 
   if(isMonthLocked(month,year)){showToast("🔒 Tháng "+month+"/"+year+" đã bị khoá. Không thể lưu.","danger");return;}
+  if(!_editErrorId===false){// đang edit
+    var _existing=getErrors().find(function(x){return x.id===_editErrorId;});
+    if(_existing&&!isOwner(_existing)){showToast("⚠️ Bạn không có quyền sửa bản ghi của người khác.","warning");return;}
+  }
   if(!deviceId){showToast("⚠️ Vui lòng chọn hệ thống","warning");return;}
   if(!childDevice){showToast("⚠️ Vui lòng nhập tên thiết bị","warning");return;}
   if(!devLocation){showToast("⚠️ Vui lòng nhập vị trí thiết bị","warning");return;}
@@ -1092,6 +1108,7 @@ function saveError(){
 function deleteError(id){
   var rec=getErrors().find(function(x){return x.id===id;});
   if(rec&&isMonthLocked(rec.month,rec.year)){showToast("🔒 Tháng "+rec.month+"/"+rec.year+" đã bị khoá. Không thể xóa.","danger");return;}
+  if(rec&&!isOwner(rec)){showToast("⚠️ Bạn không có quyền xóa bản ghi của người khác.","warning");return;}
   if(!confirm("Xóa bản ghi báo lỗi này?"))return;
   saveErrors(getErrors().filter(function(x){return x.id!==id;}));
   // Sheets: xóa đúng record theo id
