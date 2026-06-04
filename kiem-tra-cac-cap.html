@@ -96,6 +96,7 @@
     /* ── INLINE TABLE INPUTS ── */
     td .inp{padding:5px 8px;font-size:12.5px;border-radius:6px;}
     td textarea.inp{min-height:52px;}
+    td textarea.vp34-nd{min-height:80px;}
 
     /* ── BADGES ── */
     .badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11.5px;font-weight:600;}
@@ -375,9 +376,10 @@
           <div class="table-wrap">
             <table>
               <thead><tr>
-                <th class="stt-col">STT</th>
-                <th style="min-width:200px;">Họ và tên</th>
-                <th style="min-width:180px;">Chức danh</th>
+                <th style="width:36px;">No</th>
+                <th style="min-width:180px;">Họ và tên</th>
+                <th style="min-width:160px;">Chức danh</th>
+                <th style="min-width:160px;">Vai trò</th>
                 <th style="width:42px;"></th>
               </tr></thead>
               <tbody id="doanBody"></tbody>
@@ -389,14 +391,14 @@
           <div class="table-wrap">
             <table>
               <thead><tr>
-                <th class="stt-col">STT</th>
-                <th style="min-width:180px;">Nội dung</th>
-                <th style="min-width:130px;">Vị trí ghi nhận</th>
-                <th style="min-width:150px;">Cơ sở viện dẫn</th>
+                <th style="width:36px;">No</th>
+                <th style="min-width:280px;">Nội dung</th>
+                <th style="min-width:100px;">Vị trí</th>
+                <th style="min-width:140px;">Cơ sở viện dẫn</th>
                 <th style="min-width:150px;">Biện pháp khắc phục</th>
-                <th style="min-width:130px;">Thời hạn KP</th>
-                <th style="min-width:190px;">Tình trạng khắc phục</th>
-                <th style="min-width:220px;">Phân loại vi phạm</th>
+                <th style="min-width:110px;">Thời hạn KP</th>
+                <th style="min-width:170px;">Tình trạng khắc phục</th>
+                <th style="min-width:200px;">Phân loại vi phạm</th>
                 <th style="width:42px;"></th>
               </tr></thead>
               <tbody id="c34VPBody"></tbody>
@@ -420,10 +422,10 @@
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
             <select class="inp" id="filterCap" onchange="renderList()" style="width:130px;padding:5px 8px;font-size:12.5px;">
               <option value="">Tất cả cấp</option>
-              <option value="cap1">Cấp 1</option>
-              <option value="cap2">Cấp 2</option>
-              <option value="cap3">Cấp 3</option>
-              <option value="cap4">Cấp IV</option>
+              <option value="cap1">cấp 1</option>
+              <option value="cap2">cấp 2</option>
+              <option value="cap3">cấp 3</option>
+              <option value="cap4">cấp 4</option>
               <option value="khac">Khác</option>
             </select>
             <select class="inp" id="filterThangSel" onchange="renderList()" style="width:100px;padding:5px 8px;font-size:12.5px;"></select>
@@ -447,6 +449,7 @@
     </div>
     <div class="modal-body" id="modalDetailBody"></div>
     <div class="modal-footer">
+      <button class="btn btn-outline btn-sm" id="btnModalPDF" onclick="">📄 Xuất PDF</button>
       <button class="btn btn-outline" onclick="closeModal('modalDetail')">Đóng</button>
     </div>
   </div>
@@ -537,8 +540,8 @@ var LOAI_VP = [
 ];
 
 var CAP_LABELS = {
-  cap1:"Kiểm tra Cấp 1", cap2:"Kiểm tra Cấp 2",
-  cap3:"Kiểm tra Cấp 3", cap4:"Kiểm tra Cấp IV", khac:"Khác"
+  cap1:"Kiểm tra cấp 1", cap2:"Kiểm tra cấp 2",
+  cap3:"Kiểm tra cấp 3", cap4:"Kiểm tra cấp 4", khac:"Khác"
 };
 
 var MENU = [
@@ -1032,10 +1035,17 @@ document.addEventListener("DOMContentLoaded",function(){
 ═══════════════════════════════════════════════════ */
 function addDoanRow(data){
   var tbody=document.getElementById("doanBody"); data=data||{};
+  var vt=data.vaiTro||"";
   var tr=document.createElement("tr");
-  tr.innerHTML='<td class="stt-col">'+(tbody.rows.length+1)+'</td>'+
-    '<td><input class="inp dk-ten" type="text" placeholder="Họ và tên..." value="'+esc(data.ten||"")+'"></td>'+
-    '<td><input class="inp dk-chuc" type="text" placeholder="Chức danh..." value="'+esc(data.chucDanh||"")+'"></td>'+
+  tr.innerHTML='<td style="width:36px;text-align:center;color:var(--text-light);font-size:12px;">'+(tbody.rows.length+1)+'</td>'+
+    '<td><input class="inp dk-ten"  type="text" placeholder="Họ và tên..." value="'+esc(data.ten||"")+'"></td>'+
+    '<td><input class="inp dk-chuc" type="text" placeholder="Chức danh..."  value="'+esc(data.chucDanh||"")+'"></td>'+
+    '<td><select class="inp dk-vaitro">'+
+      '<option value="">-- Chọn --</option>'+
+      '<option value="truong-doan"'+(vt==="truong-doan"?" selected":"")+'>Trưởng đoàn</option>'+
+      '<option value="thanh-vien"'+(vt==="thanh-vien"?" selected":"")+'>Thành viên</option>'+
+      '<option value="tham-gia"'+(vt==="tham-gia"?" selected":"")+'>Tham gia cùng đoàn</option>'+
+    '</select></td>'+
     '<td><button class="del-row-btn" onclick="delRow(this)" title="Xoá">✕</button></td>';
   tbody.appendChild(tr);
 }
@@ -1050,7 +1060,13 @@ function addVPRow34(data){
     '<td><input class="inp vp34-vt" type="text" placeholder="Vị trí..." value="'+esc(data.viTri||"")+'"></td>'+
     '<td><textarea class="inp vp34-cs" placeholder="Quy định, TCVN...">'+esc(data.coSo||"")+'</textarea></td>'+
     '<td><textarea class="inp vp34-kp" placeholder="Biện pháp khắc phục...">'+esc(data.khacPhuc||"")+'</textarea></td>'+
-    '<td><input type="date" class="inp vp34-thoihan" value="'+esc(data.thoiHan||"")+'"></td>'+
+    '<td>'+
+      '<label style="display:flex;align-items:center;gap:5px;font-size:12px;margin-bottom:5px;cursor:pointer;">'+
+        '<input type="checkbox" class="vp34-thuongxuyen" onchange="toggleThoiHan(this)"'+(data.thuongXuyen?" checked":"")+' style="width:auto;accent-color:var(--primary);">'+
+        'Thường xuyên'+
+      '</label>'+
+      '<input type="date" class="inp vp34-thoihan" value="'+esc(data.thoiHan||"")+'"'+(data.thuongXuyen?' style="display:none;"':'')+'>'+
+    '</td>'+
     '<td>'+
       '<select class="inp vp34-trang" id="sel-'+uid+'" onchange="toggleBC(this,\''+uid+'\')">'+
         '<option value="">-- Chọn --</option>'+
@@ -1068,6 +1084,7 @@ function addVPRow34(data){
 }
 
 function toggleBC(sel,uid){var bc=document.getElementById("bao-"+uid);if(bc)bc.classList.toggle("show",sel.value==="da");}
+function toggleThoiHan(cb){var inp=cb.closest("td").querySelector(".vp34-thoihan");if(inp){inp.style.display=cb.checked?"none":"block";if(cb.checked)inp.value="";}}
 
 function delRow(btn){
   var tr=btn.closest("tr"),tb=tr.closest("tbody"); tb.removeChild(tr);
@@ -1142,9 +1159,10 @@ function saveCap34(){
 
   var doan=[];
   document.querySelectorAll("#doanBody tr").forEach(function(tr){
-    var ten=(tr.querySelector(".dk-ten")||{}).value||"";
-    var chuc=(tr.querySelector(".dk-chuc")||{}).value||"";
-    if(ten.trim()||chuc.trim()) doan.push({ten:ten.trim(),chucDanh:chuc.trim()});
+    var ten= (tr.querySelector(".dk-ten")   ||{}).value||"";
+    var chuc=(tr.querySelector(".dk-chuc")  ||{}).value||"";
+    var vt=  (tr.querySelector(".dk-vaitro")||{}).value||"";
+    if(ten.trim()||chuc.trim()) doan.push({ten:ten.trim(),chucDanh:chuc.trim(),vaiTro:vt});
   });
 
   var violations=[];
@@ -1152,13 +1170,15 @@ function saveCap34(){
     var nd=(tr.querySelector(".vp34-nd")||{}).value||"";
     var vt=(tr.querySelector(".vp34-vt")||{}).value||"";
     var cs=(tr.querySelector(".vp34-cs")||{}).value||"";
-    var kp= (tr.querySelector(".vp34-kp")     ||{}).value||"";
-    var th= (tr.querySelector(".vp34-thoihan") ||{}).value||"";
+    var kp= (tr.querySelector(".vp34-kp")       ||{}).value||"";
+    var txEl=tr.querySelector(".vp34-thuongxuyen");
+    var tx= txEl?txEl.checked:false;
+    var th= tx?"Thường xuyên":((tr.querySelector(".vp34-thoihan")||{}).value||"");
     var st= (tr.querySelector(".vp34-trang")   ||{}).value||"";
     var bao=(tr.querySelector(".vp34-baocao")  ||{}).value||"";
     var msEl=tr.querySelector(".ms-trigger");
     var loai=msEl?(msEl._sel||[]):[];
-    if(nd.trim()||vt.trim()) violations.push({nd:nd.trim(),viTri:vt.trim(),coSo:cs.trim(),khacPhuc:kp.trim(),thoiHan:th,trangThai:st,baoCao:bao.trim(),loaiVP:loai});
+    if(nd.trim()||vt.trim()) violations.push({nd:nd.trim(),viTri:vt.trim(),coSo:cs.trim(),khacPhuc:kp.trim(),thuongXuyen:tx,thoiHan:th,trangThai:st,baoCao:bao.trim(),loaiVP:loai});
   });
 
   var item={id:editId34||genId(),type:currentCap,tenKhac:tenKhac,ngayKT:ngay,noiKT:noi,doanKT:doan,violations:violations,createdBy:u?u.username:"?",createdAt:new Date().toISOString()};
@@ -1254,6 +1274,7 @@ function renderList(){
       '</div>'+
       '<div class="rec-actions">'+
         '<button class="btn btn-edit btn-sm" onclick="viewRecord(\''+r.id+'\',\''+(is12?"12":"34")+'\')">👁️ Xem</button>'+
+        '<button class="btn btn-outline btn-sm" onclick="exportPDF(\''+r.id+'\',\''+(is12?"12":"34")+'\')">📄 PDF</button>'+
         (canModify(u,r)?'<button class="btn btn-outline btn-sm" onclick="editRecord(\''+r.id+'\',\''+(is12?"12":"34")+'\')">✏️ Sửa</button>':'')+
         (canModify(u,r)?'<button class="btn btn-danger btn-sm" onclick="confirmDel(\''+r.id+'\',\''+(is12?"12":"34")+'\')">🗑️</button>':'')+
       '</div>'+
@@ -1298,15 +1319,16 @@ function viewRecord(id,sheet){
       '<div class="detail-field"><label>Nơi kiểm tra</label><span>'+esc(r.noiKT||"")+'</span></div>'+
     '</div>';
     if(doan.length){
-      html+='<div class="sec-div">Đoàn kiểm tra</div><div class="table-wrap"><table><thead><tr><th>STT</th><th>Họ và tên</th><th>Chức danh</th></tr></thead><tbody>';
-      doan.forEach(function(d,i){html+='<tr><td class="stt-col">'+(i+1)+'</td><td>'+esc(d.ten||"")+'</td><td>'+esc(d.chucDanh||"")+'</td></tr>';});
+      var vtLabel={"truong-doan":"Trưởng đoàn","thanh-vien":"Thành viên","tham-gia":"Tham gia cùng đoàn"};
+      html+='<div class="sec-div">Đoàn kiểm tra</div><div class="table-wrap"><table><thead><tr><th style="width:36px;">No</th><th>Họ và tên</th><th>Chức danh</th><th>Vai trò</th></tr></thead><tbody>';
+      doan.forEach(function(d,i){html+='<tr><td style="text-align:center;">'+(i+1)+'</td><td>'+esc(d.ten||"")+'</td><td>'+esc(d.chucDanh||"")+'</td><td>'+(vtLabel[d.vaiTro]||"—")+'</td></tr>';});
       html+='</tbody></table></div>';
     }
     if(vps.length){
-      html+='<div class="sec-div">Vi phạm / Ghi nhận</div><div class="table-wrap" style="overflow-x:auto;"><table><thead><tr><th>STT</th><th>Nội dung</th><th>Vị trí</th><th>Cơ sở</th><th>Biện pháp KP</th><th>Thời hạn KP</th><th>Tình trạng</th><th>Phân loại VP</th><th>Báo cáo KQ</th></tr></thead><tbody>';
+      html+='<div class="sec-div">Vi phạm / Ghi nhận</div><div class="table-wrap" style="overflow-x:auto;"><table><thead><tr><th style="width:36px;">No</th><th style="min-width:240px;">Nội dung</th><th style="min-width:90px;">Vị trí</th><th>Cơ sở</th><th>Biện pháp KP</th><th>Thời hạn KP</th><th>Tình trạng</th><th>Phân loại VP</th><th>Báo cáo KQ</th></tr></thead><tbody>';
       vps.forEach(function(v,i){
         var badge=v.trangThai==="da"?'<span class="badge badge-green">✅ Hoàn thành</span>':v.trangThai==="dang"?'<span class="badge badge-orange">🔄 Đang thực hiện</span>':'<span class="badge badge-gray">—</span>';
-        var thoiHanStr=v.thoiHan?'<span class="badge badge-orange">'+fmtDate(v.thoiHan)+'</span>':"—";
+        var thoiHanStr=v.thoiHan==="Thường xuyên"?'<span class="badge badge-blue">🔁 Thường xuyên</span>':v.thoiHan?'<span class="badge badge-orange">'+fmtDate(v.thoiHan)+'</span>':"—";
         var loaiStr=Array.isArray(v.loaiVP)&&v.loaiVP.length?v.loaiVP.join(", "):"—";
         html+='<tr><td class="stt-col">'+(i+1)+'</td><td>'+esc(v.nd||"")+'</td><td>'+esc(v.viTri||"")+'</td><td>'+esc(v.coSo||"")+'</td><td>'+esc(v.khacPhuc||"")+'</td><td>'+thoiHanStr+'</td><td>'+badge+'</td><td>'+esc(loaiStr)+'</td><td>'+esc(v.baoCao||"—")+'</td></tr>';
       });
@@ -1317,7 +1339,161 @@ function viewRecord(id,sheet){
   }
   html+='<div style="font-size:12px;color:var(--text-light);margin-top:14px;">Nhập bởi: <b>'+esc(r.createdBy||"")+'</b> &nbsp;·&nbsp; '+fmtDT(r.createdAt)+'</div>';
   document.getElementById("modalDetailBody").innerHTML=html;
+  document.getElementById("btnModalPDF").onclick=function(){ exportPDF(id,sheet); };
   openModal("modalDetail");
+}
+
+/* ═══════════════════════════════════════════════════
+   EXPORT PDF
+═══════════════════════════════════════════════════ */
+function exportPDF(id, sheet){
+  var r=load(sheet==="12"?LS_KEY12:LS_KEY34,[]).find(function(x){return x.id===id;});
+  if(!r) return;
+
+  var lbl=CAP_LABELS[r.type]||r.type;
+  if(r.type==="khac"&&r.tenKhac) lbl+=" — "+r.tenKhac;
+  var vtLabel={"truong-doan":"Trưởng đoàn","thanh-vien":"Thành viên","tham-gia":"Tham gia cùng đoàn"};
+  var ttkpLabel={"dang":"Đang thực hiện","da":"Hoàn thành"};
+  var is12=sheet==="12";
+
+  var body="";
+
+  // ── HEADER ──
+  body+='<div class="doc-header">'+
+    '<div class="doc-org">LIÊN DOANH VIỆT - NGA VIETSOVPETRO<br><strong>Xí nghiệp Dịch vụ Cảng và Cung ứng vật tư thiết bị</strong></div>'+
+    '<div class="doc-title">'+
+      '<div class="doc-type">BIÊN BẢN KIỂM TRA AN TOÀN</div>'+
+      '<div class="doc-cap">'+lbl.toUpperCase()+'</div>'+
+    '</div>'+
+  '</div>';
+
+  if(is12){
+    var vps=r.violations?(typeof r.violations==="string"?JSON.parse(r.violations):r.violations):[];
+    body+='<table class="info-table"><tr>'+
+      '<td><strong>Tháng kiểm tra:</strong> '+esc(r.thang||"")+'</td>'+
+      '<td><strong>Đơn vị:</strong> '+esc(r.donVi||"")+'</td>'+
+      '<td><strong>Số lần kiểm tra:</strong> '+esc(String(r.soLanKiemTra||0))+'</td>'+
+      '<td><strong>Số vi phạm:</strong> '+esc(String(r.soViPham||0))+'</td>'+
+    '</tr></table>';
+
+    if(vps.length){
+      body+='<div class="sec-title">CHI TIẾT VI PHẠM / GHI NHẬN</div>'+
+        '<table class="data-table"><thead><tr>'+
+          '<th style="width:40px;">STT</th>'+
+          '<th>Nội dung vi phạm</th>'+
+          '<th style="width:120px;">Vị trí ghi nhận</th>'+
+          '<th>Biện pháp khắc phục</th>'+
+          '<th style="width:100px;">Thời hạn KP</th>'+
+          '<th style="width:110px;">Tình trạng KP</th>'+
+          '<th>Phân loại vi phạm</th>'+
+        '</tr></thead><tbody>';
+      vps.forEach(function(v,i){
+        body+='<tr>'+
+          '<td style="text-align:center;">'+(i+1)+'</td>'+
+          '<td>'+esc(v.nd||"")+'</td>'+
+          '<td>'+esc(v.viTri||"")+'</td>'+
+          '<td>'+esc(v.bienPhapKP||"")+'</td>'+
+          '<td style="text-align:center;">'+esc(v.thoiHan==="Thường xuyên"?"Thường xuyên":fmtDate(v.thoiHan||""))+'</td>'+
+          '<td style="text-align:center;">'+esc(ttkpLabel[v.tinhTrangKP]||"")+'</td>'+
+          '<td>'+esc(Array.isArray(v.loaiVP)?v.loaiVP.join(", "):(v.loaiVP||""))+'</td>'+
+        '</tr>';
+      });
+      body+='</tbody></table>';
+    }
+  } else {
+    var doan=r.doanKT?(typeof r.doanKT==="string"?JSON.parse(r.doanKT):r.doanKT):[];
+    var vps=r.violations?(typeof r.violations==="string"?JSON.parse(r.violations):r.violations):[];
+
+    body+='<table class="info-table"><tr>'+
+      '<td><strong>Ngày kiểm tra:</strong> '+fmtDate(r.ngayKT||"")+'</td>'+
+      '<td><strong>Nơi kiểm tra:</strong> '+esc(r.noiKT||"")+'</td>'+
+    '</tr></table>';
+
+    if(doan.length){
+      body+='<div class="sec-title">THÀNH PHẦN ĐOÀN KIỂM TRA</div>'+
+        '<table class="data-table"><thead><tr>'+
+          '<th style="width:40px;">STT</th><th>Họ và tên</th><th>Chức danh</th><th style="width:150px;">Vai trò</th>'+
+        '</tr></thead><tbody>';
+      doan.forEach(function(d,i){
+        body+='<tr>'+
+          '<td style="text-align:center;">'+(i+1)+'</td>'+
+          '<td>'+esc(d.ten||"")+'</td>'+
+          '<td>'+esc(d.chucDanh||"")+'</td>'+
+          '<td>'+esc(vtLabel[d.vaiTro]||"")+'</td>'+
+        '</tr>';
+      });
+      body+='</tbody></table>';
+    }
+
+    if(vps.length){
+      body+='<div class="sec-title">NỘI DUNG VI PHẠM / GHI NHẬN</div>'+
+        '<table class="data-table"><thead><tr>'+
+          '<th style="width:36px;">STT</th>'+
+          '<th>Nội dung</th>'+
+          '<th style="width:90px;">Vị trí</th>'+
+          '<th style="width:130px;">Cơ sở viện dẫn</th>'+
+          '<th>Biện pháp khắc phục</th>'+
+          '<th style="width:95px;">Thời hạn KP</th>'+
+          '<th style="width:110px;">Tình trạng KP</th>'+
+          '<th>Phân loại VP</th>'+
+          '<th>Báo cáo KQ</th>'+
+        '</tr></thead><tbody>';
+      vps.forEach(function(v,i){
+        body+='<tr>'+
+          '<td style="text-align:center;">'+(i+1)+'</td>'+
+          '<td>'+esc(v.nd||"")+'</td>'+
+          '<td>'+esc(v.viTri||"")+'</td>'+
+          '<td>'+esc(v.coSo||"")+'</td>'+
+          '<td>'+esc(v.khacPhuc||"")+'</td>'+
+          '<td style="text-align:center;">'+esc(v.thoiHan==="Thường xuyên"?"Thường xuyên":fmtDate(v.thoiHan||""))+'</td>'+
+          '<td style="text-align:center;">'+esc(ttkpLabel[v.trangThai]||"")+'</td>'+
+          '<td>'+esc(Array.isArray(v.loaiVP)?v.loaiVP.join(", "):(v.loaiVP||""))+'</td>'+
+          '<td>'+esc(v.baoCao||"")+'</td>'+
+        '</tr>';
+      });
+      body+='</tbody></table>';
+    }
+  }
+
+  // Chữ ký
+  body+='<div class="sign-row">'+
+    '<div class="sign-box"><div class="sign-title">Đại diện đơn vị được kiểm tra</div><div class="sign-name">(Ký và ghi rõ họ tên)</div></div>'+
+    '<div class="sign-box"><div class="sign-title">Trưởng đoàn kiểm tra</div><div class="sign-name">(Ký và ghi rõ họ tên)</div></div>'+
+  '</div>';
+
+  // Footer
+  body+='<div class="doc-footer">Nhập bởi: '+esc(r.createdBy||"")+" · "+fmtDT(r.createdAt)+'</div>';
+
+  // Mở cửa sổ in
+  var win=window.open("","_blank","width=1100,height=800");
+  win.document.write('<!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8">'+
+    '<title>'+lbl+'</title>'+
+    '<style>'+
+      '@page{size:A4 landscape;margin:15mm 12mm;}'+
+      '*{box-sizing:border-box;margin:0;padding:0;}'+
+      'body{font-family:"Times New Roman",serif;font-size:11pt;color:#000;background:#fff;}'+
+      '.doc-header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #003087;padding-bottom:10px;margin-bottom:14px;}'+
+      '.doc-org{font-size:10pt;line-height:1.5;}'+
+      '.doc-title{text-align:center;flex:1;}'+
+      '.doc-type{font-size:13pt;font-weight:bold;text-transform:uppercase;color:#003087;}'+
+      '.doc-cap{font-size:11pt;font-weight:bold;margin-top:4px;}'+
+      '.info-table{width:100%;border-collapse:collapse;margin-bottom:12px;font-size:10.5pt;}'+
+      '.info-table td{padding:5px 8px;border:1px solid #ccc;}'+
+      '.sec-title{font-size:11pt;font-weight:bold;text-transform:uppercase;color:#003087;margin:14px 0 6px;border-bottom:1.5px solid #003087;padding-bottom:3px;}'+
+      '.data-table{width:100%;border-collapse:collapse;font-size:10pt;margin-bottom:12px;}'+
+      '.data-table th{background:#003087;color:#fff;padding:6px 8px;text-align:left;font-weight:bold;border:1px solid #003087;}'+
+      '.data-table td{padding:5px 8px;border:1px solid #aaa;vertical-align:top;}'+
+      '.data-table tr:nth-child(even) td{background:#f5f7fc;}'+
+      '.sign-row{display:flex;justify-content:space-around;margin-top:28px;}'+
+      '.sign-box{text-align:center;width:220px;}'+
+      '.sign-title{font-weight:bold;font-size:10.5pt;}'+
+      '.sign-name{font-size:10pt;color:#555;margin-top:4px;}'+
+      '.sign-box::after{content:"";display:block;height:52px;}'+
+      '.doc-footer{font-size:9pt;color:#888;text-align:right;margin-top:10px;border-top:1px solid #ddd;padding-top:5px;}'+
+    '</style></head><body>'+body+'</body></html>');
+  win.document.close();
+  win.focus();
+  setTimeout(function(){win.print();},400);
 }
 
 /* ═══════════════════════════════════════════════════
