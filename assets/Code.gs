@@ -63,6 +63,14 @@ var SCHEMA = {
     cols: ["id","ten","loai_hop_dong","linh_vuc","nhan_su","dia_diem","ngay_bat_dau","ngay_ket_thuc","lien_he","trang_thai","ghi_chu"],
     desc: "Quản lý nhà thầu"
   },
+  kiem_tra_cap12: {
+    cols: ["id","type","thang","donVi","soLanKiemTra","soViPham","violations","createdBy","createdAt"],
+    desc: "Kiểm tra Cấp 1 & Cấp 2"
+  },
+  kiem_tra_cap34: {
+    cols: ["id","type","tenKhac","ngayKT","noiKT","doanKT","violations","createdBy","createdAt"],
+    desc: "Kiểm tra Cấp 3, Cấp IV & Khác"
+  },
   ke_hoach_mot_lan: {
     cols: ["id","name","status","start","end","chuTri","phoiHop","coSo","ghiChu","pages","order","updatedAt"],
     desc: "Kế hoạch – Công việc một lần"
@@ -259,6 +267,16 @@ function _handleInsert(params, body) {
   var obj = body.data || body;
   if (!obj.id) obj.id = _genId();
   if (!obj.created_at) obj.created_at = new Date().toISOString();
+
+  // Nếu sheet hoàn toàn trống (chưa có header) → tạo header từ keys của object
+  if (sh.getLastColumn() === 0) {
+    var keys = Object.keys(obj);
+    sh.appendRow(keys);
+    var hr = sh.getRange(1, 1, 1, keys.length);
+    hr.setBackground("#003087").setFontColor("#ffffff").setFontWeight("bold");
+    sh.setFrozenRows(1);
+  }
+
   var row = _objToRow(sh, obj);
   sh.appendRow(row);
   _log(body.user, "insert", params.sheet, obj.id, "");
@@ -292,14 +310,34 @@ function _handleDelete(params, body) {
 function _handleBulkWrite(params, body) {
   var sh = _getSheet(params.sheet, true);
   var rows = body.data || [];
-  // Nếu sheet hoàn toàn trống (chưa có header) → tạo header từ keys của row đầu tiên
-  if (sh.getLastRow() === 0 && rows.length > 0) {
-    var autoHeaders = Object.keys(rows[0]);
-    sh.appendRow(autoHeaders);
-    var hr = sh.getRange(1, 1, 1, autoHeaders.length);
+
+  // Gom tất cả keys từ toàn bộ rows để có đầy đủ cột
+  var allKeys = [];
+  rows.forEach(function(obj) {
+    Object.keys(obj).forEach(function(k) {
+      if (allKeys.indexOf(k) < 0) allKeys.push(k);
+    });
+  });
+
+  if (sh.getLastRow() === 0) {
+    // Sheet trống → tạo header mới
+    sh.appendRow(allKeys);
+    var hr = sh.getRange(1, 1, 1, allKeys.length);
     hr.setBackground("#003087").setFontColor("#ffffff").setFontWeight("bold");
     sh.setFrozenRows(1);
+  } else {
+    // Sheet đã có header → thêm cột mới nếu thiếu
+    var existingHeaders = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+    allKeys.forEach(function(k) {
+      if (existingHeaders.indexOf(k) < 0) {
+        var newCol = sh.getLastColumn() + 1;
+        sh.getRange(1, newCol).setValue(k)
+          .setBackground("#003087").setFontColor("#ffffff").setFontWeight("bold");
+        existingHeaders.push(k);
+      }
+    });
   }
+
   // Xoá data cũ (giữ header)
   if (sh.getLastRow() > 1) {
     sh.deleteRows(2, sh.getLastRow() - 1);
