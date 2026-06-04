@@ -626,56 +626,80 @@ function switchTab(tab){
    KẾ HOẠCH LIÊN QUAN
 ═══════════════════════════════════════════════════ */
 function renderKeHoach(){
-  var links=load(K_LINKS,[]);
-  var rel=links.filter(function(l){return l.slug===SLUG;});
-  var once=rel.filter(function(l){return l.loai==="mot-lan";});
-  var recur=rel.filter(function(l){return l.loai==="lap-lai";});
+  // hse_ke_hoach_links là object {slug: [...items]}, không phải array
+  var allLinks=load(K_LINKS,{});
+  var items=allLinks[SLUG]||[];
+  var once=items.filter(function(x){return x.type==="oncetime";});
+  var recur=items.filter(function(x){return x.type==="recurring";});
 
   var hasAny=once.length||recur.length;
   document.getElementById("khEmptyMsg").style.display=hasAny?"none":"block";
   document.getElementById("khOnceSection").style.display=once.length?"block":"none";
   document.getElementById("khRecurSection").style.display=recur.length?"block":"none";
 
-  // Badge
-  var today=new Date();
-  var overdue=once.filter(function(l){
-    if(l.status==="hoan-thanh") return false;
-    var end=new Date(l.end);
-    return end<new Date(today.getFullYear(),today.getMonth(),1);
-  });
+  // Badge — đếm tổng số công việc liên quan
   var badge=document.getElementById("khBadge");
-  if(overdue.length){badge.style.display="inline";badge.textContent=overdue.length;}
+  if(items.length){badge.textContent=items.length;badge.style.display="";}
   else badge.style.display="none";
 
-  // Render một lần
-  var tbody=document.getElementById("tbodyKhOnce");
-  if(!once.length){tbody.innerHTML='<tr class="empty-row"><td colspan="7">Không có công việc một lần.</td></tr>';return;}
-  tbody.innerHTML=once.map(function(l,i){
-    var stColor=l.status==="hoan-thanh"?"badge-green":l.status==="dang-thuc-hien"?"badge-orange":"badge-gray";
-    var stLabel=l.status==="hoan-thanh"?"Hoàn thành":l.status==="dang-thuc-hien"?"Đang thực hiện":"Chưa bắt đầu";
-    var endDate=new Date(l.end);
-    var isLate=l.status!=="hoan-thanh"&&endDate<new Date(today.getFullYear(),today.getMonth(),1);
-    return '<tr>'+'<td class="stt-col">'+(i+1)+'</td>'+
-      '<td><strong>'+esc(l.title||"")+'</strong></td>'+
-      '<td><span class="badge '+stColor+(isLate?" badge-red":"")+'">'+(isLate?"⚠️ Trễ hạn":stLabel)+'</span></td>'+
-      '<td>'+esc(l.donVi||"—")+'</td>'+
-      '<td>'+(l.start?'<span style="background:#eafaf1;padding:2px 8px;border-radius:4px;font-size:12px;">'+fmtDate(l.start)+'</span>':"—")+'</td>'+
-      '<td>'+(l.end?'<span style="background:#fef5e4;padding:2px 8px;border-radius:4px;font-size:12px;color:#e68900;">'+fmtDate(l.end)+'</span>':"—")+'</td>'+
-      '<td>'+esc(l.ghiChu||"—")+'</td></tr>';
-  }).join("");
+  // Đọc status thực tế từ hse_ke_hoach_mot_lan (tránh cache cũ trong links)
+  var onceData=load("hse_ke_hoach_mot_lan",[]);
+  function getStatus(id){
+    var x=onceData.find(function(d){return d.id===id;});
+    if(!x)return"Chưa bắt đầu";
+    if((x.status||"")==="Đã hoàn thành")return"Đã hoàn thành";
+    if(x.end){var today=new Date();today.setHours(0,0,0,0);if(new Date(x.end)<today)return"Trễ hạn";}
+    return x.status||"Chưa bắt đầu";
+  }
+  function statusBadge(st){
+    var map={"Trễ hạn":"badge-red","Đang thực hiện":"badge-orange","Chưa bắt đầu":"badge-gray","Đã hoàn thành":"badge-green"};
+    return'<span class="badge '+(map[st]||"badge-gray")+'">'+esc(st)+'</span>';
+  }
+  function fmtD(s){if(!s)return"—";var p=String(s).split("-");return p.length===3?p[2]+"/"+p[1]+"/"+p[0]:s;}
 
-  // Render lặp lại
-  var tbody2=document.getElementById("tbodyKhRecur");
-  if(!recur.length){tbody2.innerHTML='<tr class="empty-row"><td colspan="6">Không có công việc lặp lại.</td></tr>';return;}
-  tbody2.innerHTML=recur.map(function(l,i){
-    var thangLabel=l.thangApDung==="hang-thang"?'<span class="badge badge-blue">🔄 Hàng tháng</span>':esc(l.thangApDung||"");
-    return '<tr><td class="stt-col">'+(i+1)+'</td>'+
-      '<td><strong>'+esc(l.title||"")+'</strong></td>'+
-      '<td>'+thangLabel+'</td>'+
-      '<td><span style="color:var(--warning);font-weight:600">'+esc(l.ngayThucHien||"—")+'</span></td>'+
-      '<td>'+esc(l.donVi||"—")+'</td>'+
-      '<td>'+esc(l.ghiChu||"—")+'</td></tr>';
-  }).join("");
+  // Render công việc một lần
+  var tbOnce=document.getElementById("tbodyKhOnce");
+  if(!once.length){
+    tbOnce.innerHTML='<tr class="empty-row"><td colspan="7">Chưa có công việc một lần nào liên quan.</td></tr>';
+  } else {
+    tbOnce.innerHTML=once.map(function(x,i){
+      var st=getStatus(x.id);
+      return'<tr>'+
+        '<td class="stt-col">'+(i+1)+'</td>'+
+        '<td style="font-weight:600;max-width:220px;">'+esc(x.name||"")+'</td>'+
+        '<td>'+statusBadge(st)+'</td>'+
+        '<td style="font-size:12.5px;">'+esc(x.chuTri||"—")+'</td>'+
+        '<td style="white-space:nowrap;"><span class="badge badge-blue">'+fmtD(x.start)+'</span></td>'+
+        '<td style="white-space:nowrap;"><span class="badge badge-orange">'+fmtD(x.end)+'</span></td>'+
+        '<td style="font-size:12px;color:var(--text-light);">'+esc(x.ghiChu||"—")+'</td>'+
+      '</tr>';
+    }).join("");
+  }
+
+  // Render công việc lặp lại
+  var tbRecur=document.getElementById("tbodyKhRecur");
+  if(!recur.length){
+    tbRecur.innerHTML='<tr class="empty-row"><td colspan="6">Chưa có công việc lặp lại nào liên quan.</td></tr>';
+  } else {
+    tbRecur.innerHTML=recur.map(function(x,i){
+      var months=x.allMonths
+        ?'<span class="badge badge-green">📅 Hàng tháng</span>'
+        :((x.months||[]).length
+          ?x.months.map(function(m){return'<span class="badge badge-gray" style="margin:1px;font-size:11px">T'+m+'</span>';}).join("")
+          :'<span style="color:var(--text-light)">—</span>');
+      var dayLabel=x.lastDay
+        ?'<span class="badge badge-orange">Cuối tháng</span>'
+        :(x.execDay?'<span class="badge badge-blue">Ngày '+x.execDay+'</span>':'<span style="color:var(--text-light)">—</span>');
+      return'<tr>'+
+        '<td class="stt-col">'+(i+1)+'</td>'+
+        '<td style="font-weight:600;max-width:220px;">'+esc(x.name||"")+'</td>'+
+        '<td>'+months+'</td>'+
+        '<td>'+dayLabel+'</td>'+
+        '<td style="font-size:12.5px;">'+esc(x.chuTri||"—")+'</td>'+
+        '<td style="font-size:12px;color:var(--text-light);">'+esc(x.ghiChu||"—")+'</td>'+
+      '</tr>';
+    }).join("");
+  }
 }
 
 /* ═══════════════════════════════════════════════════
