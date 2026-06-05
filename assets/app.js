@@ -291,12 +291,14 @@
 
     /* SIDEBAR */
     var side = el("aside","sidebar"); side.id="sidebar";
-    side.appendChild(el("div","sidebar-head",
-      '<div class="logo"><img src="assets/logo.svg" alt="Vietsovpetro"></div>'+
-      '<div><div class="t1">'+APP_NAME+'</div>'+
-      '<div class="t2">'+ORG_SHORT+'</div>'+
-      '<div class="t2">'+ORG_PARENT+'</div></div>'));
-    var nav = el("nav","nav");
+    if(activeSlug==="tong-quan"){
+      side.appendChild(el("div","sidebar-head",
+        '<div class="logo"><img src="assets/logo.svg" alt="Vietsovpetro"></div>'+
+        '<div><div class="t1">'+APP_NAME+'</div>'+
+        '<div class="t2">'+ORG_SHORT+'</div>'+
+        '<div class="t2">'+ORG_PARENT+'</div></div>'));
+    }
+    var nav = el("nav","nav"); nav.style.paddingTop = activeSlug==="tong-quan" ? "" : "8px";
     // Fix 6: đếm tài khoản chờ duyệt để hiện badge
     var pendingCount = isAdmin(u) ? getUsers().filter(function(x){ return x.pendingApproval && x.active===false; }).length : 0;
     MENU.forEach(function(item){
@@ -360,11 +362,14 @@
           '</div>'+
         '</div>';
     } else {
-      userBoxHtml=
-        '<div class="user-box">'+
-          '<span class="viewer-notice">Chế độ xem</span>'+
-          '<button class="btn btn-sm btn-login-top" id="lo">🔐 Đăng nhập</button>'+
-        '</div>';
+      userBoxHtml= activeSlug==="tong-quan"
+        ? '<div class="user-box">'+
+            '<span class="viewer-notice">Chế độ xem</span>'+
+            '<button class="btn btn-sm btn-login-top" id="lo">🔐 Đăng nhập</button>'+
+          '</div>'
+        : '<div class="user-box">'+
+            '<span class="viewer-notice">Chế độ xem</span>'+
+          '</div>';
     }
 
     top.innerHTML=
@@ -401,7 +406,7 @@
       if(doiMkBtn) doiMkBtn.addEventListener("click", function(){ if(profileDrop)profileDrop.style.display="none"; openDoiMatKhau(); });
       var editProfileBtn = document.getElementById("btn-edit-profile");
       if(editProfileBtn) editProfileBtn.addEventListener("click", function(){ if(profileDrop)profileDrop.style.display="none"; openEditProfile(); });
-    } else {
+    } else if(activeSlug==="tong-quan") {
       ensureLoginModal();
       $("#lo").addEventListener("click", openLoginModal);
     }
@@ -513,28 +518,7 @@
       '<div class="page-desc" style="margin-bottom:4px">'+greeting+'</div>'+
       '<div style="font-size:12px;color:var(--text-muted);margin-bottom:20px">'+ORG+' · '+ORG_PARENT+'</div>'));
 
-    var stats = el("div","grid grid-stat");
-    stats.innerHTML=
-      '<div class="card stat green"><span class="lbl">Số giờ làm việc an toàn</span><span class="val">—</span><span class="meta">Đang xây dựng</span></div>'+
-      '<div class="card stat red"><span class="lbl">Tai nạn / sự cố gần nhất</span><span class="val">—</span><span class="meta">Đang xây dựng</span></div>'+
-      '<div class="card stat amber"><span class="lbl">Kiểm tra chờ khắc phục</span><span class="val">—</span><span class="meta">Đang xây dựng</span></div>'+
-      '<div class="card stat"><span class="lbl">Huấn luyện trong tháng</span><span class="val">—</span><span class="meta">Đang xây dựng</span></div>';
-    wrap.appendChild(stats);
-
-    wrap.appendChild(el("div","section-h","Truy cập nhanh các phân hệ"));
-    var grid = el("div","grid grid-mod");
-    MENU.forEach(function(item){
-      if(item.slug==="tong-quan") return;
-      if(item.adminOnly && !isAdmin(u)) return;
-      var allowed = canView(u, item.slug);
-      var card = el("div","card mod-card"+(allowed?"":" locked"),
-        '<div class="mic">'+item.icon+'</div>'+
-        '<h3>'+esc(item.title)+'</h3>'+
-        '<p>'+(allowed?(item.sub.length?item.sub.length+" mục chức năng":"Đang xây dựng"):"🔒 Chưa được cấp quyền")+'</p>');
-      if(allowed) card.addEventListener("click",function(){ location.href=item.slug+".html"; });
-      grid.appendChild(card);
-    });
-    wrap.appendChild(grid);
+    renderKeHoachDashboard(wrap);
     renderShell("tong-quan", wrap);
 
     var dl = document.getElementById("dashLoginLink");
@@ -1010,8 +994,8 @@
     function renderRows(tasks){
       return tasks.map(function(t, i){
         var typeBadge = t.type === "oncetime"
-          ? '<span style="background:#dceaf7;color:#003087;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700">Một lần</span>'
-          : '<span style="background:#eafaf1;color:#1a7a3c;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700">Lặp lại</span>';
+          ? '<span style="background:#dceaf7;color:#003087;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700">Có kỳ hạn</span>'
+          : '<span style="background:#eafaf1;color:#1a7a3c;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700">Định kỳ</span>';
         var ngayTH = "";
         if(t.type === "oncetime"){
           var parts = [];
@@ -1078,6 +1062,141 @@
         '</div>';
     } else if(currentTasks.length){
       section.innerHTML += tableWrap(renderRows(currentTasks));
+    }
+
+    wrap.appendChild(section);
+  }
+
+  /* =========================================================
+     RENDER: KẾ HOẠCH TỔNG HỢP CHO TRANG TỔNG QUAN
+     Gom tất cả module, thêm cột Phân hệ
+     ========================================================= */
+  function renderKeHoachDashboard(wrap){
+    var now = new Date();
+    var curMonth = now.getMonth() + 1;
+    var curYear  = now.getFullYear();
+    var firstOfMonth = new Date(curYear, curMonth - 1, 1);
+    var lastOfMonth  = new Date(curYear, curMonth, 0);
+
+    var allLinks = load("hse_ke_hoach_links", {});
+    var monthLabel = ["Tháng 1","Tháng 2","Tháng 3","Tháng 4","Tháng 5","Tháng 6",
+                      "Tháng 7","Tháng 8","Tháng 9","Tháng 10","Tháng 11","Tháng 12"][curMonth-1]
+                     + "/" + curYear;
+
+    var overdueTasks = [];
+    var currentTasks = [];
+
+    MENU.forEach(function(item){
+      if(item.slug === "tong-quan") return;
+      var tasks = allLinks[item.slug] || [];
+      tasks.forEach(function(t){
+        var tw = Object.assign({}, t, { _phanHe: item.icon + " " + item.title });
+        // Trễ hạn
+        if(t.type === "oncetime" && t.status !== "Đã hoàn thành" && t.end && new Date(t.end) < firstOfMonth){
+          overdueTasks.push(tw);
+        }
+        // Tháng hiện tại
+        var inCurrent = false;
+        if(t.type === "oncetime"){
+          var ok = true;
+          if(t.start && new Date(t.start) > lastOfMonth) ok = false;
+          if(t.end   && new Date(t.end)   < firstOfMonth) ok = false;
+          inCurrent = ok;
+        } else {
+          inCurrent = t.allMonths || (t.months||[]).indexOf(curMonth) >= 0;
+        }
+        if(inCurrent) currentTasks.push(tw);
+      });
+    });
+
+    function statusBadge(status){
+      if(!status) return "";
+      var styles = {
+        "Đã hoàn thành": "background:#eafaf1;color:#1a7a3c",
+        "Đang thực hiện": "background:#fef5e4;color:#e68900",
+        "Trễ hạn":        "background:#fdedec;color:#c0392b",
+        "Chưa bắt đầu":   "background:#f0f3fa;color:#4a5568"
+      };
+      var s = styles[status] || "background:#f0f3fa;color:#4a5568";
+      return '<span style="'+s+';padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700;margin-left:4px">'+esc(status)+'</span>';
+    }
+
+    function renderRows(tasks){
+      return tasks.map(function(t, i){
+        var ngayTH = "";
+        if(t.type === "oncetime"){
+          var parts = [];
+          if(t.start) parts.push(t.start.split("-").reverse().join("/"));
+          if(t.end)   parts.push(t.end.split("-").reverse().join("/"));
+          ngayTH = parts.join(" – ") || "—";
+        } else {
+          ngayTH = t.lastDay ? "Cuối tháng" : (t.execDay ? "Ngày " + t.execDay : "—");
+        }
+        var ph = Array.isArray(t.phoiHop) ? t.phoiHop.join(", ") : (t.phoiHop || "—");
+        return '<tr>'+
+          '<td style="color:var(--text-muted);font-size:12px;width:30px">'+(i+1)+'</td>'+
+          '<td style="font-size:12px;color:var(--text-muted);white-space:nowrap">'+esc(t._phanHe||"—")+'</td>'+
+          '<td style="font-weight:600">'+ esc(t.name) + (t.status ? statusBadge(t.status) : "") +'</td>'+
+          '<td style="white-space:nowrap;font-size:12.5px">'+ esc(ngayTH) +'</td>'+
+          '<td style="font-size:12.5px">'+ esc(t.chuTri||"—") +'</td>'+
+          '<td style="font-size:12.5px">'+ esc(ph) +'</td>'+
+          '<td style="font-size:12px;color:var(--text-muted)">'+ esc(t.coSo||"—") +'</td>'+
+          '<td style="font-size:12px;color:var(--text-muted)">'+ esc(t.ghiChu||"—") +'</td>'+
+          '</tr>';
+      }).join("");
+    }
+
+    function tableWrap(rows, headerBg, headerColor){
+      headerBg    = headerBg    || "#dde6f3";
+      headerColor = headerColor || "#003087";
+      var th = function(txt){ return '<th style="background:'+headerBg+';color:'+headerColor+';padding:9px 12px;font-size:12.5px;text-align:left">'+txt+'</th>'; };
+      return '<div style="background:#fff;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.07);overflow:auto">'+
+        '<table style="width:100%;border-collapse:collapse">'+
+          '<thead><tr>'+
+            '<th style="background:'+headerBg+';color:'+headerColor+';padding:9px 12px;font-size:12.5px;text-align:left;width:30px">#</th>'+
+            th('Phân hệ')+th('Nội dung công việc')+th('Ngày thực hiện')+
+            th('Đơn vị chủ trì')+th('Đơn vị phối hợp')+th('Cơ sở')+th('Ghi chú')+
+          '</tr></thead>'+
+          '<tbody>'+rows+'</tbody>'+
+        '</table>'+
+      '</div>';
+    }
+
+    var section = el("div");
+    section.innerHTML =
+      '<div class="section-h" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'+
+        '<span>📋 Kế hoạch ' + monthLabel + '</span>'+
+        '<a href="ke-hoach.html" style="font-size:12px;color:var(--brand);font-weight:600;text-decoration:none">→ Xem & quản lý kế hoạch</a>'+
+      '</div>';
+
+    if(overdueTasks.length){
+      section.innerHTML +=
+        '<div style="background:#fdedec;border-left:4px solid #c0392b;border-radius:0 8px 8px 0;'+
+          'padding:9px 14px;margin-bottom:10px;font-size:12.5px;font-weight:700;color:#c0392b;">'+
+          '⚠️ ' + overdueTasks.length + ' công việc trễ hạn chưa hoàn thành'+
+        '</div>';
+      section.innerHTML += tableWrap(renderRows(overdueTasks), "#fdedec", "#c0392b");
+      section.innerHTML += '<div style="height:14px"></div>';
+    }
+
+    var oncetimeTasks  = currentTasks.filter(function(t){ return t.type === "oncetime"; });
+    var recurringTasks = currentTasks.filter(function(t){ return t.type !== "oncetime"; });
+
+    if(!currentTasks.length && !overdueTasks.length){
+      section.innerHTML +=
+        '<div style="background:#fff;border-radius:10px;padding:20px 18px;box-shadow:0 2px 8px rgba(0,0,0,0.06);'+
+          'color:var(--text-muted);font-size:13px;text-align:center;">'+
+          '✅ Không có công việc kế hoạch nào trong ' + monthLabel + '.'+
+        '</div>';
+    } else {
+      if(oncetimeTasks.length){
+        section.innerHTML += '<div style="font-size:13px;font-weight:700;color:var(--brand);margin:14px 0 8px">📌 Công việc có kỳ hạn</div>';
+        section.innerHTML += tableWrap(renderRows(oncetimeTasks));
+      }
+      if(recurringTasks.length){
+        section.innerHTML += '<div style="font-size:13px;font-weight:700;color:#1a7a3c;margin:14px 0 8px">🔁 Công việc định kỳ</div>';
+        section.innerHTML += tableWrap(renderRows(recurringTasks), "#eafaf1", "#1a7a3c");
+      }
     }
 
     wrap.appendChild(section);
