@@ -61,26 +61,47 @@
   var LS_NHANSU   = "hl_nhansu";
   var LS_SETTINGS = "hl_settings";
 
-  /* Lấy / ghi toàn bộ danh sách nhân sự */
+  /* Lấy / ghi toàn bộ danh sách nhân sự (localStorage only) */
   function _getAllData() {
     try { return JSON.parse(localStorage.getItem(LS_NHANSU) || "[]"); } catch (e) { return []; }
   }
-  function _saveAllData(arr) {
+  function _setAllData(arr) {
     localStorage.setItem(LS_NHANSU, JSON.stringify(arr));
-    if (typeof DB !== "undefined" && DB.isReady()) {
-      DB.bulkWrite("hl_nhansu", arr).catch(function () {});
-    }
   }
 
   /* Lọc nhân sự theo loại */
   function getData(key) {
     return _getAllData().filter(function (p) { return p.loai_huan_luyen === key; });
   }
-  /* Ghi nhân sự của 1 loại, giữ nguyên các loại khác */
-  function saveData(key, arr) {
-    var others = _getAllData().filter(function (p) { return p.loai_huan_luyen !== key; });
-    var tagged  = arr.map(function (p) { return Object.assign({}, p, { loai_huan_luyen: key }); });
-    _saveAllData(others.concat(tagged));
+
+  /* Insert 1 record lên Sheets + localStorage */
+  function _insertRecord(record) {
+    var all = _getAllData();
+    all.push(record);
+    _setAllData(all);
+    if (typeof DB !== "undefined" && DB.isReady()) {
+      DB.insert("hl_nhansu", record).catch(function () {});
+    }
+  }
+
+  /* Update 1 record lên Sheets + localStorage */
+  function _updateRecord(record) {
+    var all = _getAllData();
+    for (var i = 0; i < all.length; i++) {
+      if (all[i].id === record.id) { all[i] = record; break; }
+    }
+    _setAllData(all);
+    if (typeof DB !== "undefined" && DB.isReady()) {
+      DB.update("hl_nhansu", record.id, record).catch(function () {});
+    }
+  }
+
+  /* Delete 1 record trên Sheets + localStorage */
+  function _deleteRecord(id) {
+    _setAllData(_getAllData().filter(function (p) { return p.id !== id; }));
+    if (typeof DB !== "undefined" && DB.isReady()) {
+      DB.delete("hl_nhansu", id).catch(function () {});
+    }
   }
 
   /* Settings: lưu dạng object {nhom1:24, nhom2:24, ...} trong localStorage */
@@ -111,20 +132,25 @@
     return null;
   }
 
-  /* Sync từ Sheets khi tải trang */
+  /* Sync từ Sheets khi tải trang, re-render sau khi có data */
   function syncFromSheets() {
     if (typeof DB === "undefined" || !DB.isReady()) return;
-    /* Kéo toàn bộ nhân sự về 1 lần */
-    DB.getAll("hl_nhansu").then(function (rows) {
-      if (rows && rows.length) localStorage.setItem(LS_NHANSU, JSON.stringify(rows));
+
+    var p1 = DB.getAll("hl_nhansu").then(function (rows) {
+      if (rows && rows.length) _setAllData(rows);
     }).catch(function () {});
-    /* Kéo settings, chuyển [{loai, thoi_han_thang}] → object */
-    DB.getAll("hl_settings").then(function (rows) {
+
+    var p2 = DB.getAll("hl_settings").then(function (rows) {
       if (rows && rows.length) {
         var s = {};
         rows.forEach(function (r) { s[r.loai] = parseInt(r.thoi_han_thang); });
         localStorage.setItem(LS_SETTINGS, JSON.stringify(s));
       }
+    }).catch(function () {});
+
+    /* Re-render sau khi cả 2 đã về */
+    Promise.all([p1, p2]).then(function () {
+      _renderTabContent(_currentKey);
     }).catch(function () {});
   }
 
@@ -595,28 +621,26 @@
       return;
     }
 
-    var record = { name: name, pid: pid, title: title, unit: unit, lastDate: lastDate, note: note };
+    var record = { name: name, pid: pid, title: title, unit: unit, lastDate: lastDate, note: note,
+      loai_huan_luyen: _editingKey };
     if (needSubType) record.subType = subType;
 
-    var data = getData(_editingKey);
     if (_editingId) {
-      var idx = -1;
-      for (var i = 0; i < data.length; i++) if (data[i].id === _editingId) { idx = i; break; }
-      if (idx >= 0) data[idx] = Object.assign({}, data[idx], record);
+      var existing = (_getAllData().filter(function (x) { return x.id === _editingId; })[0]) || {};
+      _updateRecord(Object.assign({}, existing, record));
     } else {
-      data.push(Object.assign({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
-        created_at: new Date().toISOString() }, record));
+      record.id = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+      record.created_at = new Date().toISOString();
+      _insertRecord(record);
     }
 
-    saveData(_editingKey, data);
     _closeModal();
     _renderTabContent(_editingKey);
   }
 
   function _deletePerson(key, id) {
     if (!confirm("Xác nhận xoá nhân sự này?")) return;
-    var data = getData(key).filter(function (x) { return x.id !== id; });
-    saveData(key, data);
+    _deleteRecord(id);
     _renderTabContent(key);
   }
 
