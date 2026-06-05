@@ -334,20 +334,30 @@
             '<span style="position:absolute;top:-4px;right:-5px;background:#C8102E;color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px;min-width:14px;text-align:center;">'+pendingCount+'</span>'+
           '</a>'
         : '';
+      var roleColor = u.role==="admin" ? "#C8102E" : u.role==="viewer" ? "#6b7c93" : "#1a7a3c";
       userBoxHtml=
-        '<div class="user-box" style="position:relative;">'+
+        '<div class="user-box" style="position:relative;display:flex;align-items:center;gap:8px;">'+
           pendingBadge+
-          '<button id="btn-profile" style="display:flex;align-items:center;gap:8px;background:none;border:none;cursor:pointer;padding:4px 8px;border-radius:8px;transition:background .15s;" onmouseover="this.style.background=\'rgba(0,0,0,0.06)\'" onmouseout="this.style.background=\'transparent\'">'+
-            '<div class="avatar" style="background:var(--brand);color:#fff;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;">'+esc(initials)+'</div>'+
-            '<div style="text-align:left;">'+
-              '<div style="font-size:13px;font-weight:600;color:var(--text);">'+esc(u.fullname||u.username)+'</div>'+
-              '<div style="font-size:11px;color:var(--text-muted);">'+roleLabel(u.role)+'</div>'+
-            '</div>'+
-            '<span style="font-size:10px;color:var(--text-muted);">▼</span>'+
+          '<button id="btn-profile"'+
+            ' style="display:flex;align-items:center;gap:7px;background:rgba(255,255,255,0.15);'+
+            'border:1.5px solid rgba(255,255,255,0.3);color:#fff;padding:5px 12px;border-radius:7px;'+
+            'cursor:pointer;font-size:12.5px;transition:.15s;"'+
+            ' onmouseover="this.style.background=\'rgba(255,255,255,0.25)\'"'+
+            ' onmouseout="this.style.background=\'rgba(255,255,255,0.15)\'">'+
+            '<span style="font-size:14px;">👤</span>'+
+            '<span style="font-weight:600;">'+esc(u.fullname||u.username)+'</span>'+
+            '<span style="background:'+roleColor+';color:#fff;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:700;">'+roleLabel(u.role)+'</span>'+
+          '</button>'+
+          '<button id="lo"'+
+            ' style="background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.3);'+
+            'color:#fff;padding:5px 14px;border-radius:7px;cursor:pointer;font-size:12.5px;font-weight:600;transition:.15s;"'+
+            ' onmouseover="this.style.background=\'rgba(255,255,255,0.25)\'"'+
+            ' onmouseout="this.style.background=\'rgba(255,255,255,0.15)\'">'+
+            'Đăng xuất'+
           '</button>'+
           '<div id="profile-dropdown" style="display:none;position:absolute;right:0;top:calc(100% + 6px);background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.14);min-width:220px;z-index:200;border:1px solid var(--border);overflow:hidden;">'+
             '<div style="padding:14px 16px;border-bottom:1px solid var(--border);background:#f8f9fd;">'+
-              '<div style="font-weight:700;font-size:13.5px;">'+esc(u.fullname||u.username)+'</div>'+
+              '<div style="font-weight:700;font-size:13.5px;color:var(--text);">'+esc(u.fullname||u.username)+'</div>'+
               '<div style="font-size:12px;color:var(--text-muted);">'+esc(u.username)+' · '+roleLabel(u.role)+'</div>'+
             '</div>'+
             '<button id="btn-edit-profile" style="width:100%;text-align:left;padding:10px 16px;border:none;background:none;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px;transition:background .12s;" onmouseover="this.style.background=\'#f0f3fa\'" onmouseout="this.style.background=\'transparent\'">'+
@@ -355,10 +365,6 @@
             '</button>'+
             '<button id="btn-doi-mk" style="width:100%;text-align:left;padding:10px 16px;border:none;background:none;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px;transition:background .12s;" onmouseover="this.style.background=\'#f0f3fa\'" onmouseout="this.style.background=\'transparent\'">'+
               '🔑 Đổi mật khẩu'+
-            '</button>'+
-            '<div style="height:1px;background:var(--border);margin:4px 0;"></div>'+
-            '<button id="lo" style="width:100%;text-align:left;padding:10px 16px;border:none;background:none;cursor:pointer;font-size:13px;color:#c0392b;display:flex;align-items:center;gap:8px;transition:background .12s;" onmouseover="this.style.background=\'#fdedec\'" onmouseout="this.style.background=\'transparent\'">'+
-              '🚪 Đăng xuất'+
             '</button>'+
           '</div>'+
         '</div>';
@@ -375,7 +381,10 @@
 
     top.innerHTML=
       '<button class="menu-btn" id="mbtn">☰</button>'+
-      '<div><h2>'+esc(m?m.title:APP_NAME)+'</h2><div class="crumb">'+APP_NAME+' · '+esc(m?m.title:"")+'</div></div>'+
+      '<div>'+
+        '<div style="font-size:11px;opacity:.75;">'+esc(ORG_PARENT)+'</div>'+
+        '<div style="font-size:13px;font-weight:700;opacity:.95;">'+esc(ORG)+'</div>'+
+      '</div>'+
       '<div class="spacer"></div>'+
       userBoxHtml;
 
@@ -430,6 +439,16 @@
       }
       if(!isAdmin(u)){ renderShell(slug, deniedNode()); return; }
       var c = renderShell(slug, el("div")); renderAdmin(c); return;
+    }
+
+    // Trang huấn luyện đào tạo: custom renderer (module riêng)
+    if(slug === "huan-luyen-dao-tao"){
+      if(!canView(u, slug)){ renderShell(slug, deniedNode()); return; }
+      var hlContainer = renderShell(slug, el("div"));
+      if(typeof window.renderHuanLuyen === "function"){
+        window.renderHuanLuyen(hlContainer, u, canEdit(u, slug), isAdmin(u));
+      }
+      return;
     }
 
     // Trang thường: anonymous có thể xem, user/viewer theo phân quyền
