@@ -45,6 +45,7 @@
   function el(tag, cls, html){ var e=document.createElement(tag); if(cls)e.className=cls; if(html!=null)e.innerHTML=html; return e; }
   function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
   function load(k, def){ try{ var v=localStorage.getItem(k); return v?JSON.parse(v):def; }catch(e){ return def; } }
+  function sheetDateToLocal(s){ if(!s||typeof s!=="string"||s.indexOf("T")<0) return s; var d=new Date(s); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
   function save(k, v){ localStorage.setItem(k, JSON.stringify(v)); }
   function allSlugs(){ return MENU.map(function(m){return m.slug;}); }
   function menuBySlug(s){ for(var i=0;i<MENU.length;i++) if(MENU[i].slug===s) return MENU[i]; return null; }
@@ -518,11 +519,34 @@
       '<div class="page-desc" style="margin-bottom:4px">'+greeting+'</div>'+
       '<div style="font-size:12px;color:var(--text-muted);margin-bottom:20px">'+ORG+' · '+ORG_PARENT+'</div>'));
 
-    renderKeHoachDashboard(wrap);
-    renderShell("tong-quan", wrap);
-
-    var dl = document.getElementById("dashLoginLink");
-    if(dl){ dl.addEventListener("click", function(e){ e.preventDefault(); openLoginModal(); }); }
+    // Pull kế hoạch từ Sheets trước khi render (nếu DB sẵn sàng)
+    if(typeof DB !== "undefined" && DB.isReady()){
+      Promise.all([
+        DB.getAll("ke_hoach_mot_lan").then(function(rows){
+          if(rows && rows.length){
+            rows.forEach(function(r){
+              r.start = sheetDateToLocal(r.start);
+              r.end   = sheetDateToLocal(r.end);
+              if(r.completionDate) r.completionDate = sheetDateToLocal(r.completionDate);
+            });
+            save("hse_ke_hoach_mot_lan", rows);
+          }
+        }).catch(function(){}),
+        DB.getAll("ke_hoach_lap_lai").then(function(rows){
+          if(rows && rows.length) save("hse_ke_hoach_recur", rows);
+        }).catch(function(){})
+      ]).then(function(){
+        renderKeHoachDashboard(wrap);
+        renderShell("tong-quan", wrap);
+        var dl = document.getElementById("dashLoginLink");
+        if(dl){ dl.addEventListener("click", function(e){ e.preventDefault(); openLoginModal(); }); }
+      });
+    } else {
+      renderKeHoachDashboard(wrap);
+      renderShell("tong-quan", wrap);
+      var dl = document.getElementById("dashLoginLink");
+      if(dl){ dl.addEventListener("click", function(e){ e.preventDefault(); openLoginModal(); }); }
+    }
   }
 
   /* =========================================================
