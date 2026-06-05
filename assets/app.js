@@ -533,9 +533,35 @@
           }
         }).catch(function(){}),
         DB.getAll("ke_hoach_lap_lai").then(function(rows){
-          if(rows && rows.length) save("hse_ke_hoach_recur", rows);
+          if(rows && rows.length) save("hse_ke_hoach_lap_lai", rows);
         }).catch(function(){})
       ]).then(function(){
+        // Rebuild hse_ke_hoach_links từ dữ liệu vừa pull
+        var once  = load("hse_ke_hoach_mot_lan", []);
+        var recur = load("hse_ke_hoach_lap_lai", []);
+        var allLinks = {};
+        var today = new Date(); today.setHours(0,0,0,0);
+        once.forEach(function(item){
+          (item.pages||[]).forEach(function(slug){
+            if(!allLinks[slug]) allLinks[slug]=[];
+            var st = item.status||"Chưa bắt đầu";
+            if(st!=="Đã hoàn thành" && item.end && new Date(item.end)<today) st="Trễ hạn";
+            allLinks[slug].push({ id:item.id, type:"oncetime", name:item.name,
+              start:item.start, end:item.end, status:st,
+              completionDate:item.completionDate||"", completionReport:item.completionReport||"",
+              chuTri:item.chuTri, phoiHop:item.phoiHop, coSo:item.coSo, ghiChu:item.ghiChu });
+          });
+        });
+        recur.forEach(function(item){
+          (item.pages||[]).forEach(function(slug){
+            if(!allLinks[slug]) allLinks[slug]=[];
+            allLinks[slug].push({ id:item.id, type:"recurring", name:item.name,
+              allMonths:item.allMonths, months:item.months||[],
+              execDay:item.execDay, lastDay:item.lastDay,
+              chuTri:item.chuTri, phoiHop:item.phoiHop, coSo:item.coSo, ghiChu:item.ghiChu });
+          });
+        });
+        save("hse_ke_hoach_links", allLinks);
         renderKeHoachDashboard(wrap);
         renderShell("tong-quan", wrap);
         var dl = document.getElementById("dashLoginLink");
