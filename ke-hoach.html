@@ -2,6 +2,7 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
+  <meta name="description" content="Liên doanh Việt - Nga Vietsovpetro · Xí nghiệp Dịch vụ Cảng và CƯVTTB">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kế hoạch · Quản lý HSE</title>
   <style>
@@ -26,11 +27,6 @@
     /* ===== LAYOUT ===== */
     .layout{display:flex;min-height:100vh;}
     .sidebar{width:230px;background:var(--primary);position:fixed;top:0;left:0;bottom:0;z-index:90;display:flex;flex-direction:column;overflow-y:auto;}
-    .sidebar-head{padding:14px 16px 12px;border-bottom:1px solid rgba(255,255,255,0.12);}
-    .sidebar-head .logo{width:46px;height:46px;margin-bottom:8px;}
-    .sidebar-head .logo img{width:100%;height:100%;object-fit:contain;}
-    .sidebar-head .t1{font-size:13px;font-weight:700;color:#fff;}
-    .sidebar-head .t2{font-size:10px;color:rgba(255,255,255,0.6);line-height:1.4;margin-top:2px;}
     .nav{flex:1;}
     .nav-item{display:flex;align-items:center;gap:10px;padding:10px 18px;color:rgba(255,255,255,0.72);cursor:pointer;font-size:13px;border-left:3px solid transparent;transition:all 0.15s;text-decoration:none;}
     .nav-item:hover{background:rgba(255,255,255,0.08);color:#fff;}
@@ -45,6 +41,7 @@
     .user-badge{background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.3);border-radius:7px;padding:5px 12px;font-size:12px;color:#fff;display:flex;align-items:center;gap:6px;}
     .btn-login{background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.35);color:#fff;padding:5px 14px;border-radius:7px;font-size:12.5px;font-weight:600;cursor:pointer;transition:background .15s;}
     .btn-login:hover{background:rgba(255,255,255,0.25);}
+    .viewer-notice{font-size:12px;color:rgba(255,255,255,0.7);padding:5px 10px;}
 
     /* ===== PAGE HEADER ===== */
     .page-title{font-size:20px;font-weight:700;color:var(--primary);margin-bottom:4px;}
@@ -138,13 +135,6 @@
     /* ===== DIVIDER ===== */
     .section-label{font-size:12px;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:.6px;margin:16px 0 8px;}
 
-    /* ===== LOGIN MODAL ===== */
-    .login-modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:300;align-items:center;justify-content:center;}
-    .login-modal-bg.open{display:flex;}
-    .login-popup{background:#fff;border-radius:12px;width:360px;box-shadow:0 8px 32px rgba(0,0,0,0.22);}
-    .login-popup-h{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,#003087,#0060B6);border-radius:12px 12px 0 0;}
-    .login-popup-b{padding:20px;}
-    .login-err{background:#fdedec;border-left:3px solid var(--danger);padding:8px 12px;border-radius:0 6px 6px 0;font-size:12.5px;color:var(--danger);margin-bottom:12px;display:none;}
     .btn-block{width:100%;justify-content:center;padding:9px;}
 
     /* ===== STATUS BADGES ===== */
@@ -209,8 +199,8 @@
 
     <!-- TABS -->
     <div class="tab-bar">
-      <button class="tab-btn active" onclick="switchTab('oncetime')">📌 Công việc một lần</button>
-      <button class="tab-btn" onclick="switchTab('recurring')">🔁 Công việc lặp lại</button>
+      <button class="tab-btn active" onclick="switchTab('oncetime')">📌 Công việc có kỳ hạn</button>
+      <button class="tab-btn" onclick="switchTab('recurring')">🔁 Công việc định kỳ</button>
     </div>
 
     <!-- TAB: CÔNG VIỆC MỘT LẦN -->
@@ -328,36 +318,6 @@
   </div>
 </div>
 
-<!-- ===== MODAL ĐĂNG NHẬP ===== -->
-<div class="login-modal-bg" id="loginModalBg">
-  <div class="login-popup">
-    <div class="login-popup-h">
-      <div style="display:flex;align-items:center;gap:10px">
-        <img src="assets/logo.svg" alt="VSP" style="width:40px;height:40px;object-fit:contain">
-        <div>
-          <div style="font-weight:700;font-size:13px;color:#fff">Quản lý HSE</div>
-          <div style="font-size:10.5px;color:rgba(255,255,255,0.75)">Vietsovpetro</div>
-        </div>
-      </div>
-      <button class="modal-close" onclick="closeLoginModal()">×</button>
-    </div>
-    <div class="login-popup-b">
-      <div class="login-err" id="loginErr"></div>
-      <form id="loginForm" onsubmit="doLogin(event)">
-        <div class="form-group" style="margin-bottom:12px">
-          <label>Tên đăng nhập</label>
-          <input class="inp" id="loginUser" type="text" autocomplete="username" placeholder="VD: sonlhh.sd">
-        </div>
-        <div class="form-group" style="margin-bottom:14px">
-          <label>Mật khẩu</label>
-          <input class="inp" id="loginPass" type="password" autocomplete="current-password">
-        </div>
-        <button class="btn btn-primary btn-block" type="submit">Đăng nhập</button>
-      </form>
-    </div>
-  </div>
-</div>
-
 <!-- ===== TOAST ===== -->
 <div id="toast" style="position:fixed;bottom:24px;right:24px;background:var(--primary);color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,0.2);z-index:999;display:none;transition:opacity .3s;"></div>
 
@@ -423,12 +383,7 @@ function canEdit(u){
 function buildSidebar(){
   var u=currentUser();
   var aside=document.getElementById("sidebar");
-  var html='<div class="sidebar-head">';
-  html+='<div class="logo"><img src="assets/logo.svg" alt="VSP"></div>';
-  html+='<div class="t1">Quản lý HSE</div>';
-  html+='<div class="t2">XN Dịch vụ Cảng & Cung ứng VTTB</div>';
-  html+='<div class="t2">Vietsovpetro</div></div>';
-  html+='<nav class="nav">';
+  var html='<nav class="nav" style="padding-top:8px">';
   MENU.forEach(function(m){
     if(m.adminOnly&&(!u||u.role!=="admin"))return;
     var active=m.slug==="ke-hoach"?" active":"";
@@ -454,13 +409,13 @@ function buildTopbar(){
       '</div>'+
       '<button class="btn-login" onclick="doLogout()">Đăng xuất</button>';
   } else {
-    right.innerHTML='<button class="btn-login" onclick="openLoginModal()">🔐 Đăng nhập</button>';
+    right.innerHTML='<span class="viewer-notice">Chế độ xem</span>';
   }
   // Desc
   var desc=document.getElementById("pageDesc");
   var u2=currentUser();
   if(!u2){
-    desc.innerHTML='<span style="color:var(--text-light)">Bạn đang xem ở chế độ khách. </span><a href="#" onclick="openLoginModal();return false;" style="color:var(--primary);font-weight:600">Đăng nhập</a><span style="color:var(--text-light)"> để thao tác và nhập liệu.</span>';
+    desc.textContent='Bạn đang xem ở chế độ khách.';
   } else if(canEdit(u2)){
     desc.textContent='Bạn có quyền thao tác trên trang này.';
   } else {
@@ -487,13 +442,22 @@ function _khToast(ok,msg){
   else   showToast("⚠️ Lưu local OK, chưa sync Sheets: "+msg,"warning");
 }
 
+function sheetDateToLocal(s){
+  if(!s||typeof s!=="string"||s.indexOf("T")<0) return s;
+  var d=new Date(s);
+  var y=d.getFullYear();
+  var m=String(d.getMonth()+1).padStart(2,"0");
+  var day=String(d.getDate()).padStart(2,"0");
+  return y+"-"+m+"-"+day;
+}
 function loadOnceFromSheets(){
   if(typeof DB==="undefined"||!DB.isReady())return;
   DB.getAll("ke_hoach_mot_lan").then(function(rows){
     if(rows&&rows.length){
       rows.forEach(function(r){
-        if(r.start&&typeof r.start==="string"&&r.start.indexOf("T")>=0) r.start=r.start.split("T")[0];
-        if(r.end  &&typeof r.end  ==="string"&&r.end  .indexOf("T")>=0) r.end  =r.end  .split("T")[0];
+        r.start=sheetDateToLocal(r.start);
+        r.end  =sheetDateToLocal(r.end);
+        if(r.completionDate) r.completionDate=sheetDateToLocal(r.completionDate);
       });
       save(K_ONCETIME,rows); renderTable("oncetime");
     }
@@ -885,7 +849,7 @@ function openModal(type, editId){
     var data=type==="oncetime"?getOnce():getRecur();
     existing=data.find(function(x){return x.id===editId;})||null;
   }
-  document.getElementById("modalTitle").textContent=(editId?"Chỉnh sửa":"Thêm")+" công việc "+(type==="oncetime"?"một lần":"lặp lại");
+  document.getElementById("modalTitle").textContent=(editId?"Chỉnh sửa":"Thêm")+" công việc "+(type==="oncetime"?"có kỳ hạn":"định kỳ");
   document.getElementById("modalBody").innerHTML=buildForm(type,existing);
   // (month visibility handled by inline HTML state)
   document.getElementById("modalBg").classList.add("open");
@@ -1296,46 +1260,8 @@ function savePageLinks(){
   save("hse_ke_hoach_links",allLinks);
 }
 
-/* -------- LOGIN -------- */
-function openLoginModal(){document.getElementById("loginModalBg").classList.add("open");setTimeout(function(){document.getElementById("loginUser").focus();},80);}
-function closeLoginModal(){document.getElementById("loginModalBg").classList.remove("open");}
-var PW_SALT_KH="vsp_hse_2024";
-function hashPwKH(pw){
-  var data=new TextEncoder().encode(PW_SALT_KH+pw);
-  return crypto.subtle.digest("SHA-256",data).then(function(buf){
-    return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,"0");}).join("");
-  });
-}
-function doLogin(e){
-  e.preventDefault();
-  var un=document.getElementById("loginUser").value.trim();
-  var pw=document.getElementById("loginPass").value;
-  var u=findUser(un);
-  var err=document.getElementById("loginErr");
-  if(!u){err.textContent="Tài khoản không tồn tại.";err.style.display="block";return;}
-  if(u.pendingApproval&&u.active===false){err.textContent="⏳ Tài khoản đang chờ Admin phê duyệt.";err.style.display="block";return;}
-  if(u.active===false){err.textContent="🔒 Tài khoản đã bị khoá.";err.style.display="block";return;}
-  var btn=e.target.querySelector("button[type=submit]");
-  if(btn){btn.disabled=true;btn.textContent="Đang kiểm tra...";}
-  hashPwKH(pw).then(function(hashed){
-    var isOk=(/^[0-9a-f]{64}$/.test(u.password||""))?(u.password===hashed):(u.password===pw);
-    if(!isOk){
-      if(btn){btn.disabled=false;btn.textContent="Đăng nhập";}
-      err.textContent="Sai mật khẩu.";err.style.display="block";return;
-    }
-    if(!(/^[0-9a-f]{64}$/.test(u.password||""))){
-      var users=getUsers();
-      for(var i=0;i<users.length;i++){if(users[i].username===un){users[i].password=hashed;break;}}
-      var seen={},deduped=[];users.forEach(function(x){if(x.username&&!seen[x.username]){seen[x.username]=true;deduped.push(x);}});
-      save(K_USERS,deduped);
-    }
-    save(K_SESS,u.username);
-    location.reload();
-  });
-}
 function doLogout(){localStorage.removeItem(K_SESS);location.reload();}
 
-document.getElementById("loginModalBg").addEventListener("click",function(e){if(e.target===this)closeLoginModal();});
 document.getElementById("modalBg").addEventListener("click",function(e){if(e.target===this)closeModal();});
 document.getElementById("completionModalBg").addEventListener("click",function(e){if(e.target===this)closeCompletionModal();});
 document.getElementById("viewCompletionModalBg").addEventListener("click",function(e){if(e.target===this)closeViewCompletionModal();});

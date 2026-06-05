@@ -2,6 +2,7 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
+  <meta name="description" content="Liên doanh Việt - Nga Vietsovpetro · Xí nghiệp Dịch vụ Cảng và CƯVTTB">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kiểm tra các cấp · Quản lý HSE</title>
   <style>
@@ -25,11 +26,6 @@
     /* ── LAYOUT ── */
     .layout{display:flex;min-height:100vh;}
     .sidebar{width:230px;background:var(--primary);position:fixed;top:0;left:0;bottom:0;z-index:90;display:flex;flex-direction:column;overflow-y:auto;}
-    .sidebar-head{padding:14px 16px 12px;border-bottom:1px solid rgba(255,255,255,0.12);}
-    .sidebar-head .logo{width:46px;height:46px;margin-bottom:8px;}
-    .sidebar-head .logo img{width:100%;height:100%;object-fit:contain;}
-    .sidebar-head .t1{font-size:13px;font-weight:700;color:#fff;}
-    .sidebar-head .t2{font-size:10px;color:rgba(255,255,255,0.6);line-height:1.4;margin-top:2px;}
     .nav-item{display:flex;align-items:center;gap:10px;padding:10px 18px;color:rgba(255,255,255,0.72);font-size:13px;border-left:3px solid transparent;transition:all .15s;text-decoration:none;}
     .nav-item:hover{background:rgba(255,255,255,0.08);color:#fff;}
     .nav-item.active{background:rgba(0,32,101,0.45);border-left-color:var(--accent);color:#fff;font-weight:600;}
@@ -41,6 +37,7 @@
     .user-badge{background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.3);border-radius:7px;padding:5px 12px;font-size:12px;color:#fff;display:flex;align-items:center;gap:6px;}
     .btn-login{background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.35);color:#fff;padding:5px 14px;border-radius:7px;font-size:12.5px;font-weight:600;cursor:pointer;}
     .btn-login:hover{background:rgba(255,255,255,0.25);}
+    .viewer-notice{font-size:12px;color:rgba(255,255,255,0.7);padding:5px 10px;}
 
     /* ── TABS ── */
     .page-title{font-size:20px;font-weight:700;color:var(--primary);margin-bottom:4px;}
@@ -196,12 +193,6 @@
     /* ── TOAST ── */
     #toast{position:fixed;bottom:24px;right:24px;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,0.2);z-index:999;display:none;color:#fff;}
 
-    /* ── LOGIN MODAL ── */
-    .login-modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:300;align-items:center;justify-content:center;}
-    .login-modal-bg.open{display:flex;}
-    .login-popup{background:#fff;border-radius:12px;width:360px;box-shadow:0 8px 32px rgba(0,0,0,0.22);}
-    .login-err{background:#fdedec;border-left:3px solid var(--danger);padding:8px 12px;border-radius:0 6px 6px 0;font-size:12.5px;color:var(--danger);margin-bottom:12px;display:none;}
-
     @media(max-width:768px){
       .sidebar{transform:translateX(-100%);}
       .main{margin-left:0;padding:72px 14px 24px;}
@@ -233,56 +224,8 @@
 
     <!-- TAB BAR -->
     <div class="tab-bar" id="tabBar">
-      <button class="tab-btn active" onclick="switchTab('kehoach')">
-        📅 Kế hoạch liên quan
-        <span id="khBadge" style="display:none;background:var(--accent);color:#fff;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:700;margin-left:4px;"></span>
-      </button>
       <button class="tab-btn" id="tabBtnNhap" onclick="switchTab('nhap')" style="display:none;">➕ Nhập mới</button>
-      <button class="tab-btn" onclick="switchTab('danhsach')">📑 Danh sách</button>
-    </div>
-
-    <!-- ─── TAB: KẾ HOẠCH ─── -->
-    <div class="tab-pane active" id="tab-kehoach">
-      <div class="section-card">
-        <div class="section-card-head">
-          <div class="section-card-title">🗓️ Công việc Kế hoạch liên quan đến Kiểm tra các cấp</div>
-          <a href="ke-hoach.html" class="btn btn-outline btn-sm">↗ Mở trang Kế hoạch</a>
-        </div>
-        <div id="khEmptyMsg" class="info-box" style="display:none;">
-          Chưa có công việc nào gán cho trang này. Vào <a href="ke-hoach.html" style="color:var(--primary);font-weight:600;">trang Kế hoạch</a> để thêm.
-        </div>
-        <div id="khOnceSection" style="display:none;">
-          <div class="kh-sub-header">📌 Công việc một lần</div>
-          <div class="table-wrap" style="margin-bottom:18px;">
-            <table>
-              <thead><tr>
-                <th style="width:32px;">#</th>
-                <th>Nội dung công việc</th>
-                <th style="width:130px;">Tình trạng</th>
-                <th>Đơn vị chủ trì</th>
-                <th>Bắt đầu</th><th>Kết thúc</th><th>Ghi chú</th>
-              </tr></thead>
-              <tbody id="tbodyKhOnce"></tbody>
-            </table>
-          </div>
-        </div>
-        <div id="khRecurSection" style="display:none;">
-          <div class="kh-sub-header">🔁 Công việc lặp lại</div>
-          <div class="table-wrap" style="margin-bottom:0;">
-            <table>
-              <thead><tr>
-                <th style="width:32px;">#</th>
-                <th>Nội dung công việc</th>
-                <th>Tháng áp dụng</th>
-                <th>Ngày thực hiện</th>
-                <th>Đơn vị chủ trì</th>
-                <th>Ghi chú</th>
-              </tr></thead>
-              <tbody id="tbodyKhRecur"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+      <button class="tab-btn active" onclick="switchTab('danhsach')">📑 Danh sách</button>
     </div>
 
     <!-- ─── TAB: NHẬP MỚI ─── -->
@@ -468,28 +411,6 @@
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('modalDel')">Huỷ</button>
       <button class="btn btn-danger" id="btnConfirmDel" style="background:var(--danger);color:#fff;">🗑️ Xoá</button>
-    </div>
-  </div>
-</div>
-
-<!-- ══════ MODAL: ĐĂNG NHẬP ══════ -->
-<div class="login-modal-bg" id="loginModalBg">
-  <div class="login-popup">
-    <div class="modal-head" style="border-radius:12px 12px 0 0;">
-      <h3>🔐 Đăng nhập</h3>
-      <button class="modal-close" onclick="closeLoginModal()">×</button>
-    </div>
-    <div style="padding:20px;">
-      <div class="login-err" id="loginErr"></div>
-      <div class="form-group" style="margin-bottom:12px;">
-        <label>Tên đăng nhập</label>
-        <input class="inp" id="loginUser" placeholder="username" onkeydown="if(event.key==='Enter')doLogin()">
-      </div>
-      <div class="form-group" style="margin-bottom:16px;">
-        <label>Mật khẩu</label>
-        <input class="inp" type="password" id="loginPass" placeholder="••••••" onkeydown="if(event.key==='Enter')doLogin()">
-      </div>
-      <button class="btn btn-primary" style="width:100%;" onclick="doLogin()">Đăng nhập</button>
     </div>
   </div>
 </div>
@@ -718,8 +639,7 @@ function canAnyInput(u){
 ═══════════════════════════════════════════════════ */
 function buildSidebar(){
   var u=currentUser();
-  var html='<div class="sidebar-head"><div class="logo"><img src="assets/logo.svg" alt="VSP"></div>'+
-    '<div><div class="t1">Quản lý HSE</div><div class="t2">XN Dịch vụ Cảng &amp; Cung ứng VTTB</div><div class="t2">Vietsovpetro</div></div></div><nav style="flex:1">';
+  var html='<nav style="flex:1;padding-top:8px">';
   MENU.forEach(function(m){
     if(m.adminOnly&&(!u||u.role!=="admin")) return;
     var active=m.slug===SLUG?" active":"";
@@ -739,10 +659,10 @@ function buildTopbar(){
       (u.role==="admin"?"Admin":u.role==="viewer"?"Viewer":"User")+'</span></div>'+
       '<button class="btn-login" onclick="doLogout()">Đăng xuất</button>';
   } else {
-    right.innerHTML='<button class="btn-login" onclick="openLoginModal()">🔐 Đăng nhập</button>';
+    right.innerHTML='<span class="viewer-notice">Chế độ xem</span>';
   }
   var desc=document.getElementById("pageDesc");
-  if(!u) desc.innerHTML='<span style="color:var(--text-light)">Bạn đang xem ở chế độ khách. </span><a href="#" onclick="openLoginModal();return false;" style="color:var(--primary);font-weight:600">Đăng nhập</a><span style="color:var(--text-light)"> để thao tác.</span>';
+  if(!u) desc.textContent='Bạn đang xem ở chế độ khách.';
   else if(canAnyInput(u)) desc.textContent='Bạn có quyền thao tác trên trang này.';
   else desc.textContent='Bạn chỉ có quyền xem trang này.';
 }
@@ -751,96 +671,16 @@ function buildTopbar(){
    TABS
 ═══════════════════════════════════════════════════ */
 function switchTab(tab){
-  ["kehoach","nhap","danhsach"].forEach(function(t){
+  ["nhap","danhsach"].forEach(function(t){
     document.getElementById("tab-"+t).classList.toggle("active", t===tab);
   });
   document.querySelectorAll(".tab-btn").forEach(function(b){
     b.classList.remove("active");
     if(b.getAttribute("onclick")&&b.getAttribute("onclick").indexOf("'"+tab+"'")>=0) b.classList.add("active");
   });
-  if(tab==="kehoach") renderKeHoach();
   if(tab==="danhsach") renderList();
 }
 
-/* ═══════════════════════════════════════════════════
-   KẾ HOẠCH LIÊN QUAN
-═══════════════════════════════════════════════════ */
-function renderKeHoach(){
-  // hse_ke_hoach_links là object {slug: [...items]}, không phải array
-  var allLinks=load(K_LINKS,{});
-  var items=allLinks[SLUG]||[];
-  var once=items.filter(function(x){return x.type==="oncetime";});
-  var recur=items.filter(function(x){return x.type==="recurring";});
-
-  var hasAny=once.length||recur.length;
-  document.getElementById("khEmptyMsg").style.display=hasAny?"none":"block";
-  document.getElementById("khOnceSection").style.display=once.length?"block":"none";
-  document.getElementById("khRecurSection").style.display=recur.length?"block":"none";
-
-  // Badge — đếm tổng số công việc liên quan
-  var badge=document.getElementById("khBadge");
-  if(items.length){badge.textContent=items.length;badge.style.display="";}
-  else badge.style.display="none";
-
-  // Đọc status thực tế từ hse_ke_hoach_mot_lan (tránh cache cũ trong links)
-  var onceData=load("hse_ke_hoach_mot_lan",[]);
-  function getStatus(id){
-    var x=onceData.find(function(d){return d.id===id;});
-    if(!x)return"Chưa bắt đầu";
-    if((x.status||"")==="Đã hoàn thành")return"Đã hoàn thành";
-    if(x.end){var today=new Date();today.setHours(0,0,0,0);if(new Date(x.end)<today)return"Trễ hạn";}
-    return x.status||"Chưa bắt đầu";
-  }
-  function statusBadge(st){
-    var map={"Trễ hạn":"badge-red","Đang thực hiện":"badge-orange","Chưa bắt đầu":"badge-gray","Đã hoàn thành":"badge-green"};
-    return'<span class="badge '+(map[st]||"badge-gray")+'">'+esc(st)+'</span>';
-  }
-  function fmtD(s){if(!s)return"—";var p=String(s).split("-");return p.length===3?p[2]+"/"+p[1]+"/"+p[0]:s;}
-
-  // Render công việc một lần
-  var tbOnce=document.getElementById("tbodyKhOnce");
-  if(!once.length){
-    tbOnce.innerHTML='<tr class="empty-row"><td colspan="7">Chưa có công việc một lần nào liên quan.</td></tr>';
-  } else {
-    tbOnce.innerHTML=once.map(function(x,i){
-      var st=getStatus(x.id);
-      return'<tr>'+
-        '<td class="stt-col">'+(i+1)+'</td>'+
-        '<td style="font-weight:600;max-width:220px;">'+esc(x.name||"")+'</td>'+
-        '<td>'+statusBadge(st)+'</td>'+
-        '<td style="font-size:12.5px;">'+esc(x.chuTri||"—")+'</td>'+
-        '<td style="white-space:nowrap;"><span class="badge badge-blue">'+fmtD(x.start)+'</span></td>'+
-        '<td style="white-space:nowrap;"><span class="badge badge-orange">'+fmtD(x.end)+'</span></td>'+
-        '<td style="font-size:12px;color:var(--text-light);">'+esc(x.ghiChu||"—")+'</td>'+
-      '</tr>';
-    }).join("");
-  }
-
-  // Render công việc lặp lại
-  var tbRecur=document.getElementById("tbodyKhRecur");
-  if(!recur.length){
-    tbRecur.innerHTML='<tr class="empty-row"><td colspan="6">Chưa có công việc lặp lại nào liên quan.</td></tr>';
-  } else {
-    tbRecur.innerHTML=recur.map(function(x,i){
-      var months=x.allMonths
-        ?'<span class="badge badge-green">📅 Hàng tháng</span>'
-        :((x.months||[]).length
-          ?x.months.map(function(m){return'<span class="badge badge-gray" style="margin:1px;font-size:11px">T'+m+'</span>';}).join("")
-          :'<span style="color:var(--text-light)">—</span>');
-      var dayLabel=x.lastDay
-        ?'<span class="badge badge-orange">Cuối tháng</span>'
-        :(x.execDay?'<span class="badge badge-blue">Ngày '+x.execDay+'</span>':'<span style="color:var(--text-light)">—</span>');
-      return'<tr>'+
-        '<td class="stt-col">'+(i+1)+'</td>'+
-        '<td style="font-weight:600;max-width:220px;">'+esc(x.name||"")+'</td>'+
-        '<td>'+months+'</td>'+
-        '<td>'+dayLabel+'</td>'+
-        '<td style="font-size:12.5px;">'+esc(x.chuTri||"—")+'</td>'+
-        '<td style="font-size:12px;color:var(--text-light);">'+esc(x.ghiChu||"—")+'</td>'+
-      '</tr>';
-    }).join("");
-  }
-}
 
 /* ═══════════════════════════════════════════════════
    CAP SELECTOR
@@ -1631,26 +1471,10 @@ function confirmDel(id,sheet){
 function openModal(id){document.getElementById(id).classList.add("open");}
 function closeModal(id){document.getElementById(id).classList.remove("open");}
 document.addEventListener("click",function(e){
-  document.querySelectorAll(".modal-bg.open,.login-modal-bg.open").forEach(function(el){if(e.target===el)el.classList.remove("open");});
+  document.querySelectorAll(".modal-bg.open").forEach(function(el){if(e.target===el)el.classList.remove("open");});
 });
 
-/* ═══════════════════════════════════════════════════
-   LOGIN / LOGOUT
-═══════════════════════════════════════════════════ */
-function openLoginModal(){document.getElementById("loginModalBg").classList.add("open");}
-function closeLoginModal(){document.getElementById("loginModalBg").classList.remove("open");}
-function doLogin(){
-  var un=document.getElementById("loginUser").value.trim();
-  var pw=document.getElementById("loginPass").value;
-  var u=findUser(un);
-  var err=document.getElementById("loginErr");
-  if(!u||u.password!==pw){err.textContent="Sai tên đăng nhập hoặc mật khẩu.";err.style.display="block";return;}
-  err.style.display="none";
-  save(K_SESS,u.username);
-  closeLoginModal();
-  init();
-}
-function doLogout(){save(K_SESS,null);init();}
+function doLogout(){localStorage.removeItem(K_SESS);location.reload();}
 
 /* ═══════════════════════════════════════════════════
    INIT
@@ -1669,8 +1493,7 @@ function init(){
   resetForm();
 
   loadData();
-  renderKeHoach();
-  switchTab("kehoach");
+  switchTab("danhsach");
 }
 
 document.addEventListener("DOMContentLoaded",init);
