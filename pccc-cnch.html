@@ -1839,32 +1839,78 @@ function deleteMarkerById(zoneId,markerId){
 }
 
 /* ---- DANH SÁCH MARKER BÊN DƯỚI SƠ ĐỒ ---- */
+var _markerViewMode = 'summary'; // 'summary' | 'detail'
+
 function renderMarkerList(zoneId){
   var wrap=document.getElementById('zoneMarkerList');
   if(!wrap) return;
   var markers=getZoneMarkers(zoneId);
   var u=currentUser(); var adm=isAdmin(u);
+
   if(!markers.length){
     wrap.innerHTML='<div class="section-card"><div style="text-align:center;color:var(--text-light);padding:16px;font-style:italic;font-size:13px;">Chưa có phương tiện nào được đặt trong khu vực này.</div></div>';
     return;
   }
-  var rows=markers.map(function(m,i){
-    var canAct=adm||(u&&(u.fullname===m.createdBy||u.username===m.createdBy));
-    var btns=canAct?
-      '<button class="btn btn-edit btn-sm" onclick="openEditMarkerModal(\''+zoneId+'\',\''+m.id+'\')">✏️</button> '+
-      '<button class="btn btn-danger btn-sm" onclick="deleteMarkerById(\''+zoneId+'\',\''+m.id+'\')">🗑️</button>':'';
-    return '<tr><td style="color:var(--text-light);font-size:12px">'+(i+1)+'</td>'+
-      '<td style="font-weight:600">'+esc(m.type)+'</td>'+
-      '<td style="text-align:center;font-weight:700;color:var(--primary)">'+(m.qty||1)+'</td>'+
-      '<td>'+esc(m.note||'—')+'</td>'+
-      '<td style="font-size:12px;color:var(--text-light)">'+esc(m.createdBy||'—')+'</td>'+
-      '<td style="white-space:nowrap">'+btns+'</td></tr>';
-  }).join('');
+
+  // Tính tổng số điểm và tổng số lượng
+  var totalQty=markers.reduce(function(s,m){return s+(m.qty||1);},0);
+
+  // Toggle button
+  var isSummary=(_markerViewMode==='summary');
+  var toggleBtn='<button class="btn btn-outline btn-sm" onclick="_markerViewMode=\''+(isSummary?'detail':'summary')+'\';renderMarkerList(\''+zoneId+'\')" style="font-size:12px;">'+(isSummary?'📋 Xem chi tiết':'📊 Xem tổng hợp')+'</button>';
+
+  var tableHtml='';
+
+  if(isSummary){
+    // Gom nhóm theo type
+    var grouped={};
+    markers.forEach(function(m){
+      if(!grouped[m.type]) grouped[m.type]={qty:0,notes:[],count:0};
+      grouped[m.type].qty+=(m.qty||1);
+      grouped[m.type].count++;
+      if(m.note) grouped[m.type].notes.push(m.note);
+    });
+    var sRows=Object.keys(grouped).map(function(type,i){
+      var g=grouped[type];
+      var notes=g.notes.length?g.notes.join('; '):'—';
+      return '<tr>'+
+        '<td style="color:var(--text-light);font-size:12px">'+(i+1)+'</td>'+
+        '<td style="font-weight:600">'+esc(type)+'</td>'+
+        '<td style="text-align:center;font-weight:700;color:var(--primary)">'+g.qty+'</td>'+
+        '<td style="font-size:12px;color:var(--text-light)">'+g.count+' vị trí</td>'+
+        '<td style="font-size:12px">'+esc(notes)+'</td>'+
+      '</tr>';
+    }).join('');
+    tableHtml='<div class="table-wrap" style="margin-bottom:0"><table>'+
+      '<thead><tr><th style="width:40px">#</th><th>Loại phương tiện</th><th style="width:80px">Tổng SL</th><th style="width:80px">Vị trí</th><th>Ghi chú</th></tr></thead>'+
+      '<tbody>'+sRows+'</tbody></table></div>';
+  } else {
+    // Chi tiết từng marker
+    var dRows=markers.map(function(m,i){
+      var canAct=adm||(u&&(u.fullname===m.createdBy||u.username===m.createdBy));
+      var btns=canAct?
+        '<button class="btn btn-edit btn-sm" onclick="openEditMarkerModal(\''+zoneId+'\',\''+m.id+'\')">✏️</button> '+
+        '<button class="btn btn-danger btn-sm" onclick="deleteMarkerById(\''+zoneId+'\',\''+m.id+'\')">🗑️</button>':'';
+      return '<tr>'+
+        '<td style="color:var(--text-light);font-size:12px">'+(i+1)+'</td>'+
+        '<td style="font-weight:600">'+esc(m.type)+'</td>'+
+        '<td style="text-align:center;font-weight:700;color:var(--primary)">'+(m.qty||1)+'</td>'+
+        '<td>'+esc(m.note||'—')+'</td>'+
+        '<td style="font-size:12px;color:var(--text-light)">'+esc(m.createdBy||'—')+'</td>'+
+        '<td style="white-space:nowrap">'+btns+'</td></tr>';
+    }).join('');
+    tableHtml='<div class="table-wrap" style="margin-bottom:0"><table>'+
+      '<thead><tr><th style="width:40px">#</th><th>Loại phương tiện</th><th style="width:80px">Số lượng</th><th>Ghi chú</th><th>Người nhập</th><th style="width:90px"></th></tr></thead>'+
+      '<tbody>'+dRows+'</tbody></table></div>';
+  }
+
   wrap.innerHTML='<div class="section-card">'+
-    '<div class="section-card-head"><div class="section-card-title">📋 Danh sách phương tiện trong khu vực ('+markers.length+')</div></div>'+
-    '<div class="table-wrap" style="margin-bottom:0"><table>'+
-    '<thead><tr><th style="width:40px">#</th><th>Loại phương tiện</th><th style="width:80px">Số lượng</th><th>Ghi chú</th><th>Người nhập</th><th style="width:90px"></th></tr></thead>'+
-    '<tbody>'+rows+'</tbody></table></div></div>';
+    '<div class="section-card-head">'+
+      '<div class="section-card-title">📋 Phương tiện trong khu vực <span style="font-size:12px;font-weight:400;color:var(--text-light);margin-left:6px;">('+markers.length+' vị trí · '+totalQty+' thiết bị)</span></div>'+
+      toggleBtn+
+    '</div>'+
+    tableHtml+
+    '</div>';
 }
 
 /* ---- ZONE TOOLBAR ---- */
