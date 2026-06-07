@@ -692,6 +692,49 @@ function safePullLockedMonths(){
   }).catch(function(){});
 }
 
+var SH_PT_TYPES   = "pt_cc_cnch_types";
+var SH_PT_MARKERS = "pt_cc_cnch_markers";
+
+function safePullPTTypes(){
+  if(!DB||!DB.isReady()) return;
+  DB.getAll(SH_PT_TYPES).then(function(r){
+    if(r&&r.length){
+      // Sheets có data → cập nhật localStorage
+      savePTTypes(r.map(function(x){return x.name;}));
+    } else {
+      // Sheets trống → seed toàn bộ danh mục hiện tại (gồm defaults) lên Sheets
+      var types=getPTTypes();
+      var now=new Date().toISOString();
+      var rows=types.map(function(name){
+        return {id:uid(),name:name,createdBy:'system',createdAt:now};
+      });
+      DB.bulkWrite(SH_PT_TYPES,rows).catch(function(){});
+    }
+  }).catch(function(){});
+}
+
+function safePullPTMarkers(){
+  if(!DB||!DB.isReady()) return;
+  DB.getAll(SH_PT_MARKERS).then(function(r){
+    if(r&&r.length){
+      // Gom markers theo zoneId
+      var grouped={};
+      r.forEach(function(m){
+        if(!grouped[m.zoneId]) grouped[m.zoneId]=[];
+        grouped[m.zoneId].push(m);
+      });
+      save(K_PT, grouped);
+      // Cập nhật UI nếu đang mở zone view
+      var zv=document.getElementById("zoneView");
+      if(zv&&zv.classList.contains("active")){
+        var zoneId=zv.dataset.zoneId;
+        if(zoneId){ renderMarkers(zoneId); renderMarkerList(zoneId); }
+      }
+      buildZoneGrid();
+    }
+  }).catch(function(){});
+}
+
 /* ---- RENDER DEVICES (Admin) ---- */
 function renderDevices(){
   var u=currentUser();
@@ -1789,6 +1832,10 @@ function deleteMarkerById(zoneId,markerId){
   renderMarkerList(zoneId);
   buildZoneGrid();
   showToast('🗑️ Đã xóa phương tiện','danger');
+  // Sync lên Sheets
+  if(typeof DB!=="undefined"&&DB.isReady()){
+    DB.delete(SH_PT_MARKERS,markerId).catch(function(){});
+  }
 }
 
 /* ---- DANH SÁCH MARKER BÊN DƯỚI SƠ ĐỒ ---- */
@@ -1802,19 +1849,21 @@ function renderMarkerList(zoneId){
     return;
   }
   var rows=markers.map(function(m,i){
-    var canDel=adm||(u&&(u.fullname===m.createdBy||u.username===m.createdBy));
-    var btn=canDel?'<button class="btn btn-danger btn-sm" onclick="deleteMarkerById(\''+zoneId+'\',\''+m.id+'\')">🗑️</button>':'';
+    var canAct=adm||(u&&(u.fullname===m.createdBy||u.username===m.createdBy));
+    var btns=canAct?
+      '<button class="btn btn-edit btn-sm" onclick="openEditMarkerModal(\''+zoneId+'\',\''+m.id+'\')">✏️</button> '+
+      '<button class="btn btn-danger btn-sm" onclick="deleteMarkerById(\''+zoneId+'\',\''+m.id+'\')">🗑️</button>':'';
     return '<tr><td style="color:var(--text-light);font-size:12px">'+(i+1)+'</td>'+
       '<td style="font-weight:600">'+esc(m.type)+'</td>'+
       '<td style="text-align:center;font-weight:700;color:var(--primary)">'+(m.qty||1)+'</td>'+
       '<td>'+esc(m.note||'—')+'</td>'+
       '<td style="font-size:12px;color:var(--text-light)">'+esc(m.createdBy||'—')+'</td>'+
-      '<td>'+btn+'</td></tr>';
+      '<td style="white-space:nowrap">'+btns+'</td></tr>';
   }).join('');
   wrap.innerHTML='<div class="section-card">'+
     '<div class="section-card-head"><div class="section-card-title">📋 Danh sách phương tiện trong khu vực ('+markers.length+')</div></div>'+
     '<div class="table-wrap" style="margin-bottom:0"><table>'+
-    '<thead><tr><th style="width:40px">#</th><th>Loại phương tiện</th><th style="width:80px">Số lượng</th><th>Ghi chú</th><th>Người nhập</th><th style="width:60px"></th></tr></thead>'+
+    '<thead><tr><th style="width:40px">#</th><th>Loại phương tiện</th><th style="width:80px">Số lượng</th><th>Ghi chú</th><th>Người nhập</th><th style="width:90px"></th></tr></thead>'+
     '<tbody>'+rows+'</tbody></table></div></div>';
 }
 
@@ -1830,17 +1879,25 @@ function buildZoneToolbar(zoneId){
 }
 
 /* ---- MARKER MODAL ---- */
-var _mkPending={zoneId:null,x:0,y:0};
-function openMarkerModal(zoneId,x,y){
-  _mkPending={zoneId:zoneId,x:x,y:y};
+var _mkPending={zoneId:null,x:0,y:0,editId:null};
+function openMarkerModal(zoneId,x,y,editId){
+  _mkPending={zoneId:zoneId,x:x,y:y,editId:editId||null};
   var types=getPTTypes();
   document.getElementById('markerType').innerHTML=types.map(function(t){
     return '<option value="'+esc(t)+'">'+esc(t)+'</option>';
   }).join('');
-  document.getElementById('markerQty').value='1';
-  document.getElementById('markerNote').value='';
+  var existing=editId?getZoneMarkers(zoneId).find(function(m){return m.id===editId;}):null;
+  document.getElementById('markerModalTitle').textContent=editId?'Sửa phương tiện CC & CNCH':'Thêm phương tiện CC & CNCH';
+  document.getElementById('markerType').value=existing?existing.type:(types[0]||'');
+  document.getElementById('markerQty').value=existing?(existing.qty||1):1;
+  document.getElementById('markerNote').value=existing?(existing.note||''):'';
   document.getElementById('markerModalBg').classList.add('open');
   setTimeout(function(){document.getElementById('markerQty').focus();},80);
+}
+function openEditMarkerModal(zoneId,markerId){
+  var m=getZoneMarkers(zoneId).find(function(x){return x.id===markerId;});
+  if(!m) return;
+  openMarkerModal(zoneId,m.x,m.y,markerId);
 }
 function closeMarkerModal(){document.getElementById('markerModalBg').classList.remove('open');}
 function confirmSaveMarker(){
@@ -1850,19 +1907,57 @@ function confirmSaveMarker(){
   if(!type){showToast('⚠️ Chọn loại phương tiện','warning');return;}
   if(qty<1){showToast('⚠️ Số lượng phải ≥ 1','warning');return;}
   var u=currentUser();
-  var m={id:uid(),type:type,qty:qty,note:note,
-    x:Math.round(_mkPending.x),y:Math.round(_mkPending.y),
-    createdBy:u?(u.fullname||u.username):'Khách',
-    createdAt:new Date().toISOString()};
   var zoneId=_mkPending.zoneId;
+  var isEdit=!!_mkPending.editId;
   var arr=getZoneMarkers(zoneId);
-  arr.push(m);
-  saveZoneMarkers(zoneId,arr);
-  closeMarkerModal();
-  renderMarkers(zoneId);
-  renderMarkerList(zoneId);
-  buildZoneGrid();
-  showToast('✅ Đã thêm: '+type,'success');
+
+  if(isEdit){
+    // Cập nhật record hiện có
+    var idx=arr.findIndex(function(m){return m.id===_mkPending.editId;});
+    if(idx<0){showToast('⚠️ Không tìm thấy bản ghi','warning');return;}
+    arr[idx]=Object.assign({},arr[idx],{
+      type:type, qty:qty, note:note,
+      updatedBy:u?(u.fullname||u.username):'Khách',
+      updatedAt:new Date().toISOString()
+    });
+    var updated=arr[idx];
+    saveZoneMarkers(zoneId,arr);
+    closeMarkerModal();
+    renderMarkers(zoneId);
+    renderMarkerList(zoneId);
+    showToast('✅ Đã cập nhật: '+type,'success');
+    // Sync lên Sheets
+    if(typeof DB!=="undefined"&&DB.isReady()){
+      DB.update(SH_PT_MARKERS,updated.id,updated)
+        .catch(function(e){
+          // Nếu chưa có trên Sheets thì insert
+          if(e&&e.message&&e.message.indexOf('tìm thấy')>=0)
+            return DB.insert(SH_PT_MARKERS,updated);
+          throw e;
+        })
+        .then(function(){_dbToast(true,'Phương tiện');})
+        .catch(function(e){_dbToast(false,e&&e.message||'');});
+    }
+  } else {
+    // Thêm mới
+    var m={id:uid(),zoneId:zoneId,type:type,qty:qty,note:note,
+      x:Math.round(_mkPending.x),y:Math.round(_mkPending.y),
+      createdBy:u?(u.fullname||u.username):'Khách',
+      createdAt:new Date().toISOString()};
+    arr.push(m);
+    saveZoneMarkers(zoneId,arr);
+    closeMarkerModal();
+    renderMarkers(zoneId);
+    renderMarkerList(zoneId);
+    buildZoneGrid();
+    showToast('✅ Đã thêm: '+type,'success');
+    // Sync lên Sheets
+    if(typeof DB!=="undefined"&&DB.isReady()){
+      DB.insert(SH_PT_MARKERS,m)
+        .then(function(){_dbToast(true,'Phương tiện');})
+        .catch(function(e){_dbToast(false,e&&e.message||'');});
+    }
+  }
 }
 
 /* ---- PT TYPE MODAL (Admin) ---- */
@@ -1882,12 +1977,58 @@ function renderPTTypes(){
     return;
   }
   wrap.innerHTML='<div class="table-wrap" style="margin-bottom:0"><table>'+
-    '<thead><tr><th style="width:36px">#</th><th>Tên loại phương tiện</th><th style="width:60px"></th></tr></thead><tbody>'+
+    '<thead><tr><th style="width:36px">#</th><th>Tên loại phương tiện</th><th style="width:90px"></th></tr></thead><tbody>'+
     types.map(function(t,i){
-      return '<tr><td style="color:var(--text-light);font-size:12px">'+(i+1)+'</td>'+
-        '<td>'+esc(t)+'</td>'+
-        '<td><button class="btn btn-danger btn-sm" onclick="deletePTType(\''+esc(t)+'\')">🗑️</button></td></tr>';
+      var safeT=esc(t);
+      return '<tr id="ptrow-'+i+'">'+
+        '<td style="color:var(--text-light);font-size:12px">'+(i+1)+'</td>'+
+        '<td id="ptcell-'+i+'">'+safeT+'</td>'+
+        '<td style="white-space:nowrap">'+
+          '<button class="btn btn-edit btn-sm" onclick="startEditPTType('+i+',\''+safeT+'\')">✏️</button> '+
+          '<button class="btn btn-danger btn-sm" onclick="deletePTType(\''+safeT+'\')">🗑️</button>'+
+        '</td></tr>';
     }).join('')+'</tbody></table></div>';
+}
+
+function startEditPTType(idx,oldName){
+  var cell=document.getElementById('ptcell-'+idx);
+  if(!cell) return;
+  cell.innerHTML='<div style="display:flex;gap:6px;align-items:center;">'+
+    '<input id="ptEditInp-'+idx+'" class="inp" style="padding:4px 8px;font-size:13px;flex:1" value="'+esc(oldName)+'" onkeydown="if(event.key===\'Enter\')confirmEditPTType('+idx+',\''+esc(oldName)+'\');if(event.key===\'Escape\')renderPTTypes();">'+
+    '<button class="btn btn-primary btn-sm" onclick="confirmEditPTType('+idx+',\''+esc(oldName)+'\')">✓</button>'+
+    '<button class="btn btn-outline btn-sm" onclick="renderPTTypes()">✕</button>'+
+  '</div>';
+  setTimeout(function(){
+    var inp=document.getElementById('ptEditInp-'+idx);
+    if(inp){inp.focus();inp.select();}
+  },50);
+}
+
+function confirmEditPTType(idx,oldName){
+  var inp=document.getElementById('ptEditInp-'+idx);
+  if(!inp) return;
+  var newName=(inp.value||'').trim();
+  if(!newName){showToast('⚠️ Tên không được để trống','warning');return;}
+  if(newName===oldName){renderPTTypes();return;}
+  var types=getPTTypes();
+  if(types.indexOf(newName)>=0){showToast('⚠️ Tên này đã tồn tại','warning');return;}
+  var i=types.indexOf(oldName);
+  if(i<0){showToast('⚠️ Không tìm thấy loại cần sửa','warning');return;}
+  types[i]=newName;
+  savePTTypes(types);
+  renderPTTypes();
+  showToast('✅ Đã đổi tên thành: '+newName,'success');
+  // Sync lên Sheets: tìm record theo tên cũ rồi update
+  if(typeof DB!=="undefined"&&DB.isReady()){
+    DB.getAll(SH_PT_TYPES).then(function(r){
+      var found=r&&r.find(function(x){return x.name===oldName;});
+      if(found){
+        DB.update(SH_PT_TYPES,found.id,{name:newName})
+          .then(function(){_dbToast(true,'Danh mục');})
+          .catch(function(e){_dbToast(false,e&&e.message||'');});
+      }
+    }).catch(function(){});
+  }
 }
 function addPTType(){
   var name=(document.getElementById('newPTTypeName').value||'').trim();
@@ -1899,12 +2040,27 @@ function addPTType(){
   document.getElementById('newPTTypeName').value='';
   renderPTTypes();
   showToast('✅ Đã thêm: '+name,'success');
+  // Sync lên Sheets
+  if(typeof DB!=="undefined"&&DB.isReady()){
+    var u=currentUser();
+    var item={id:uid(),name:name,createdBy:u?(u.fullname||u.username):'Admin',createdAt:new Date().toISOString()};
+    DB.insert(SH_PT_TYPES,item)
+      .then(function(){_dbToast(true,'Danh mục');})
+      .catch(function(e){_dbToast(false,e&&e.message||'');});
+  }
 }
 function deletePTType(name){
   if(!confirm('Xóa loại "'+name+'"?')) return;
   savePTTypes(getPTTypes().filter(function(t){return t!==name;}));
   renderPTTypes();
   showToast('🗑️ Đã xóa','danger');
+  // Sync lên Sheets: xóa theo name (tìm id trước)
+  if(typeof DB!=="undefined"&&DB.isReady()){
+    DB.getAll(SH_PT_TYPES).then(function(r){
+      var found=r&&r.find(function(x){return x.name===name;});
+      if(found) DB.delete(SH_PT_TYPES,found.id).catch(function(){});
+    }).catch(function(){});
+  }
 }
 
 /* ---- INIT ---- */
@@ -1927,6 +2083,8 @@ setTimeout(function(){
   safePullDevices();
   safePullErrors();
   safePullLockedMonths();
+  safePullPTTypes();
+  safePullPTMarkers();
 },1500);
 </script>
 </body>
