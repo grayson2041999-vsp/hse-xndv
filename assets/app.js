@@ -18,7 +18,7 @@
     { slug:"huan-luyen-dao-tao", title:"Huấn luyện - Đào tạo",        icon:"🎓", sub:["Thống kê các loại đào tạo, huấn luyện","Kiểm tra kiến thức an toàn","Đào tạo nội bộ"] },
     { slug:"ung-pho-khan-cap",   title:"Ứng phó tình huống khẩn cấp", icon:"🚨", sub:["Kế hoạch","Báo cáo"] },
     { slug:"jsa",                title:"JSA",                         icon:"📝", sub:["Hướng dẫn lập JSA online"] },
-    { slug:"sop",                title:"SOP",                         icon:"📑", sub:[] },
+    { slug:"sop",                title:"SOP",                         icon:"📑", sub:[], adminEditOnly:true },
     { slug:"kiem-tra-cac-cap",   title:"Kiểm tra các cấp",            icon:"🔍", sub:["Số lượng kiểm tra các cấp","Ghi nhận các lỗi vào hệ thống","Ghi nhận hành động khắc phục, thời hạn"] },
     { slug:"quan-ly-thiet-bi",   title:"Quản lý thiết bị",            icon:"⚙️", sub:["Thiết bị nâng","Bình áp lực"] },
     { slug:"kham-suc-khoe",      title:"Khám sức khoẻ nghề nghiệp",   icon:"🩺", sub:["Theo dõi khám sức khoẻ nghề nghiệp","Theo dõi khám bệnh nghề nghiệp"] },
@@ -152,6 +152,9 @@
     if(!u) return false;
     if(u.role==="admin") return true;
     if(u.role==="viewer") return false;
+    // Trang chỉ admin được chỉnh sửa
+    var m = menuBySlug(slug);
+    if(m && m.adminEditOnly) return false;
     // User: chỉ edit được trang admin đã cấp quyền
     return (u.perms||[]).indexOf(slug) !== -1;
   }
@@ -439,6 +442,14 @@
       }
       if(!isAdmin(u)){ renderShell(slug, deniedNode()); return; }
       var c = renderShell(slug, el("div")); renderAdmin(c); return;
+    }
+
+    // Trang SOP: custom renderer
+    if(slug === "sop"){
+      if(!canView(u, slug)){ renderShell(slug, deniedNode()); return; }
+      var sopContainer = renderShell(slug, el("div"));
+      renderSop(sopContainer, u, isAdmin(u));
+      return;
     }
 
     // Trang huấn luyện đào tạo: custom renderer (module riêng)
@@ -738,6 +749,7 @@
     var permBox = $("#m_perms",bg);
     MENU.forEach(function(item){
       if(item.adminOnly) return;
+      if(item.adminEditOnly) return;
       var lab = el("label","perm-item");
       lab.innerHTML='<input type="checkbox" value="'+item.slug+'"><span>'+item.icon+' '+esc(item.title)+'</span>';
       permBox.appendChild(lab);
@@ -776,7 +788,7 @@
         approveChk.checked=false;
         // Fix 5: gợi ý phân quyền mặc định khi duyệt (chọn sẵn các trang cơ bản)
         var defaultPerms=["tong-quan","pccc-cnch","cap-phat-bhld","huan-luyen-dao-tao",
-          "ung-pho-khan-cap","jsa","sop","kiem-tra-cac-cap","quan-ly-thiet-bi",
+          "ung-pho-khan-cap","jsa","kiem-tra-cac-cap","quan-ly-thiet-bi",
           "kham-suc-khoe","an-toan-dien","an-toan-giao-thong","moi-truong",
           "quan-ly-hoa-chat","quan-ly-nha-thau","ke-hoach","bao-cao"];
         if(!(user.perms && user.perms.length)) setPerms(defaultPerms);
@@ -1269,6 +1281,209 @@
     }
 
     wrap.appendChild(section);
+  }
+
+  /* =========================================================
+     RENDER: TRANG SOP
+     ========================================================= */
+  var K_SOP = "hse_sop";
+  function fmtSopDate(s){
+    // Chuẩn hoá ISO → YYYY-MM-DD trước, rồi hiển thị DD/MM/YYYY
+    var d = sheetDateToLocal(s);
+    if(!d) return "—";
+    var parts = d.split("-");
+    if(parts.length === 3) return parts[2]+"/"+parts[1]+"/"+parts[0];
+    return d;
+  }
+
+  function getSops(){ return load(K_SOP, []); }
+  function setSops(arr){
+    save(K_SOP, arr);
+    if(typeof DB !== "undefined" && DB.isReady()){
+      DB.bulkWrite("sop", arr).catch(function(e){ console.warn("[SOP] Sync Sheets thất bại:", e); });
+    }
+  }
+
+  function renderSop(container, u, admin){
+    container.innerHTML = "";
+
+    // ── Tiêu đề trang ──
+    var descText = admin
+      ? 'Bạn có quyền thêm, chỉnh sửa và xoá tài liệu SOP.'
+      : 'Bạn chỉ có quyền xem danh sách tài liệu SOP.';
+    container.appendChild(el("div","",
+      '<div class="page-title">📑 SOP</div>'+
+      '<div class="page-desc">'+esc(descText)+'</div>'));
+
+    // ── Toolbar: tìm kiếm + lọc đơn vị + nút thêm (admin) ──
+    var bar = el("div","toolbar");
+    bar.innerHTML =
+      '<input class="inp" id="sop-q" placeholder="🔍 Tìm theo mã hoặc tên SOP..." style="min-width:220px">'+
+      '<select class="inp" id="sop-filter-dv" style="min-width:180px">'+
+        '<option value="">— Tất cả đơn vị —</option>'+
+      '</select>'+
+      '<div class="spacer"></div>'+
+      (admin ? '<button class="btn btn-accent" id="sop-add">＋ Thêm SOP</button>' : '');
+    container.appendChild(bar);
+
+    // ── Bảng danh sách ──
+    var tw = el("div","table-wrap");
+    var tbl = el("table"); tbl.id = "sop-tbl"; tw.appendChild(tbl); container.appendChild(tw);
+
+    // ── Modal thêm/sửa (chỉ admin) ──
+    var modal = null;
+    if(admin){ modal = buildSopModal(); container.appendChild(modal.bg); }
+
+    // ── Cập nhật dropdown đơn vị ──
+    function refreshDvOptions(){
+      var sops = getSops();
+      var dvSet = {};
+      sops.forEach(function(s){ if(s.don_vi) dvSet[s.don_vi] = true; });
+      var sel = document.getElementById("sop-filter-dv");
+      if(!sel) return;
+      var cur = sel.value;
+      sel.innerHTML = '<option value="">— Tất cả đơn vị —</option>';
+      Object.keys(dvSet).sort().forEach(function(dv){
+        var opt = document.createElement("option");
+        opt.value = dv; opt.textContent = dv;
+        if(dv === cur) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    }
+
+    // ── Vẽ bảng ──
+    function draw(){
+      var q   = (document.getElementById("sop-q")||{value:""}).value.toLowerCase();
+      var dv  = (document.getElementById("sop-filter-dv")||{value:""}).value;
+      var sops = getSops().filter(function(s){
+        var matchQ = !q || (s.ma_td||"").toLowerCase().indexOf(q)!==-1 || (s.ten_sop||"").toLowerCase().indexOf(q)!==-1;
+        var matchDv = !dv || s.don_vi === dv;
+        return matchQ && matchDv;
+      });
+      var html = '<thead><tr>'+
+        '<th style="width:130px">Mã tài liệu</th>'+
+        '<th>Tên SOP</th>'+
+        '<th style="width:180px">Đơn vị thực hiện</th>'+
+        '<th style="width:120px">Ngày phê duyệt</th>'+
+        '<th style="width:120px;text-align:center">Tài liệu</th>'+
+        (admin ? '<th style="width:110px;text-align:center">Thao tác</th>' : '')+
+        '</tr></thead><tbody>';
+      if(!sops.length){
+        html += '<tr><td colspan="'+(admin?6:5)+'" class="muted" style="text-align:center;padding:28px">Không có tài liệu SOP nào.</td></tr>';
+      }
+      sops.forEach(function(s){
+        html += '<tr>'+
+          '<td><span style="font-family:monospace;font-size:12.5px;color:var(--primary);font-weight:600">'+esc(s.ma_td||'—')+'</span></td>'+
+          '<td><b>'+esc(s.ten_sop||'')+'</b></td>'+
+          '<td style="color:var(--text-muted)">'+esc(s.don_vi||'—')+'</td>'+
+          '<td style="color:var(--text-muted);font-size:12.5px">'+esc(fmtSopDate(s.ngay_pd))+'</td>'+
+          '<td style="text-align:center">'+
+            (s.link ? '<a href="'+esc(s.link)+'" target="_blank" style="display:inline-flex;align-items:center;gap:5px;background:var(--primary);color:white;text-decoration:none;padding:5px 12px;border-radius:6px;font-size:12.5px;font-weight:600">📄 Xem</a>' : '<span style="color:var(--text-muted);font-size:12.5px">—</span>')+
+          '</td>'+
+          (admin ?
+            '<td style="text-align:center">'+
+              '<button class="btn btn-ghost btn-sm" data-act="edit" data-id="'+esc(s.id)+'">Sửa</button> '+
+              '<button class="btn btn-danger btn-sm" data-act="del" data-id="'+esc(s.id)+'">Xoá</button>'+
+            '</td>' : '')+
+          '</tr>';
+      });
+      html += '</tbody>';
+      tbl.innerHTML = html;
+
+      if(admin){
+        Array.prototype.forEach.call(tbl.querySelectorAll("button[data-act]"), function(b){
+          b.addEventListener("click", function(){
+            var id = b.getAttribute("data-id"), act = b.getAttribute("data-act");
+            if(act==="edit"){ var rec = getSops().filter(function(x){return x.id===id;})[0]; if(rec) modal.open(rec); }
+            else if(act==="del"){ delSop(id); }
+          });
+        });
+      }
+    }
+
+    function delSop(id){
+      if(!confirm("Xoá tài liệu SOP này?")) return;
+      setSops(getSops().filter(function(x){ return x.id !== id; }));
+      refreshDvOptions(); draw();
+    }
+
+    if(admin){
+      modal.onSave = function(data, editId){
+        var arr = getSops();
+        if(editId){
+          arr.forEach(function(x){ if(x.id===editId){ x.ma_td=data.ma_td; x.ten_sop=data.ten_sop; x.don_vi=data.don_vi; x.ngay_pd=data.ngay_pd; x.link=data.link; } });
+        } else {
+          arr.push({ id: Date.now().toString(36), ma_td:data.ma_td, ten_sop:data.ten_sop, don_vi:data.don_vi, ngay_pd:data.ngay_pd, link:data.link });
+        }
+        setSops(arr); refreshDvOptions(); draw();
+      };
+      document.getElementById("sop-add").addEventListener("click", function(){ modal.open(null); });
+    }
+
+    document.getElementById("sop-q").addEventListener("input", draw);
+    document.getElementById("sop-filter-dv").addEventListener("change", draw);
+
+    // Load từ Sheets nếu đã kết nối
+    if(typeof DB !== "undefined" && DB.isReady()){
+      DB.getAll("sop").then(function(rows){
+        if(rows && rows.length){ save(K_SOP, rows); refreshDvOptions(); draw(); }
+      }).catch(function(){});
+    }
+
+    refreshDvOptions(); draw();
+  }
+
+  function buildSopModal(){
+    var bg = el("div","modal-bg"); bg.id = "sop-modal";
+    bg.innerHTML =
+      '<div class="modal" style="max-width:480px">'+
+        '<div class="modal-h"><span id="sop-mt">Thêm SOP</span><button class="x" id="sop-mx">×</button></div>'+
+        '<div class="modal-b">'+
+          '<div class="field"><label>Mã tài liệu <span style="color:var(--accent)">*</span></label><input class="inp" id="sop-ma" style="width:100%" placeholder="Nhập mã tài liệu"></div>'+
+          '<div class="field"><label>Tên SOP <span style="color:var(--accent)">*</span></label><input class="inp" id="sop-ten" style="width:100%" placeholder="Tên đầy đủ của SOP"></div>'+
+          '<div class="field"><label>Đơn vị thực hiện</label><input class="inp" id="sop-dv" style="width:100%" placeholder="Nhập đơn vị thực hiện"></div>'+
+          '<div class="field"><label>Ngày phê duyệt</label><input class="inp" id="sop-nd" type="date" style="width:100%"></div>'+
+          '<div class="field"><label>Link tài liệu</label><input class="inp" id="sop-lk" style="width:100%" placeholder="https://..."></div>'+
+        '</div>'+
+        '<div class="modal-f"><button class="btn btn-ghost" id="sop-mc">Huỷ</button><button class="btn btn-accent" id="sop-ms">Lưu</button></div>'+
+      '</div>';
+
+    var editId = null;
+    var api = { bg: bg, onSave: null };
+
+    api.open = function(rec){
+      editId = rec ? rec.id : null;
+      $("#sop-mt",bg).textContent = rec ? "Chỉnh sửa SOP" : "Thêm SOP mới";
+      $("#sop-ma",bg).value  = rec ? (rec.ma_td||"")   : "";
+      $("#sop-ten",bg).value = rec ? (rec.ten_sop||"")  : "";
+      $("#sop-dv",bg).value  = rec ? (rec.don_vi||"")   : "";
+      $("#sop-nd",bg).value  = rec ? (sheetDateToLocal(rec.ngay_pd)||"")  : "";
+      $("#sop-lk",bg).value  = rec ? (rec.link||"")     : "";
+      bg.classList.add("open");
+    };
+    function close(){ bg.classList.remove("open"); }
+
+    $("#sop-mx",bg).addEventListener("click", close);
+    $("#sop-mc",bg).addEventListener("click", close);
+    bg.addEventListener("click", function(e){ if(e.target===bg) close(); });
+
+    $("#sop-ms",bg).addEventListener("click", function(){
+      var ma  = $("#sop-ma",bg).value.trim();
+      var ten = $("#sop-ten",bg).value.trim();
+      if(!ma || !ten){ alert("Vui lòng nhập Mã tài liệu và Tên SOP."); return; }
+      if(api.onSave){
+        api.onSave({
+          ma_td:   ma,
+          ten_sop: ten,
+          don_vi:  $("#sop-dv",bg).value.trim(),
+          ngay_pd: $("#sop-nd",bg).value,
+          link:    $("#sop-lk",bg).value.trim()
+        }, editId);
+      }
+      close();
+    });
+
+    return api;
   }
 
   /* -------- XUẤT API -------- */

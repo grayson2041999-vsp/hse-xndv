@@ -57,6 +57,22 @@ var SCHEMA = {
     desc: "Kế hoạch – Công việc định kỳ"
   },
 
+  // ── SOP ──
+  sop: {
+    cols: ["id","ma_td","ten_sop","don_vi","ngay_pd","link"],
+    desc: "Danh sách SOP"
+  },
+
+  // ── HUẤN LUYỆN - ĐÀO TẠO ──
+  hl_nhansu: {
+    cols: ["id","loai_huan_luyen","name","pid","title","unit","lastDate","note","created_at"],
+    desc: "Huấn luyện – Danh sách nhân sự"
+  },
+  hl_settings: {
+    cols: ["loai","thoi_han_thang"],
+    desc: "Huấn luyện – Thời hạn huấn luyện lại theo loại"
+  },
+
   // ── KIỂM TRA CÁC CẤP ──
   kiem_tra_cap12: {
     cols: ["id","type","thang","donVi","soLanKiemTra","soViPham","violations","createdBy","createdAt"],
