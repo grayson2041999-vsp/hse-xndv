@@ -34,6 +34,14 @@ var SCHEMA = {
   },
 
   // ── PCCC & CNCH ──
+  pt_cc_cnch_types: {
+    cols: ["id","name","createdBy","createdAt"],
+    desc: "PCCC – Danh mục loại phương tiện CC & CNCH"
+  },
+  pt_cc_cnch_markers: {
+    cols: ["id","zoneId","type","qty","note","x","y","createdBy","createdAt"],
+    desc: "PCCC – Vị trí phương tiện CC & CNCH trên sơ đồ"
+  },
   pccc_devices: {
     cols: ["id","name","location","createdAt","updatedAt"],
     desc: "PCCC – Danh sách thiết bị"
