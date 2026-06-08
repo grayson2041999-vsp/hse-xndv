@@ -572,7 +572,8 @@
         var allLinks = {};
         var today = new Date(); today.setHours(0,0,0,0);
         once.forEach(function(item){
-          (item.pages||[]).forEach(function(slug){
+          var targetPages = (item.pages && item.pages.length) ? item.pages : ["ke-hoach"];
+          targetPages.forEach(function(slug){
             if(!allLinks[slug]) allLinks[slug]=[];
             var st = item.status||"Chưa bắt đầu";
             if(st!=="Đã hoàn thành" && item.end && new Date(item.end)<today) st="Trễ hạn";
@@ -583,7 +584,8 @@
           });
         });
         recur.forEach(function(item){
-          (item.pages||[]).forEach(function(slug){
+          var targetPages = (item.pages && item.pages.length) ? item.pages : ["ke-hoach"];
+          targetPages.forEach(function(slug){
             if(!allLinks[slug]) allLinks[slug]=[];
             allLinks[slug].push({ id:item.id, type:"recurring", name:item.name,
               allMonths:item.allMonths, months:item.months||[],
