@@ -33,6 +33,12 @@ var SCHEMA = {
     desc: "Nhật ký thao tác"
   },
 
+  // ── MÔI TRƯỜNG ──
+  moi_truong: {
+    cols: ["id","nam","thang","rac_nh_long","rac_nh_ran","rac_knh","thung_suc_rua","phuy_sat","phuy_nhua","can","thung_nhua_1m3","pin_ac_quy","amiang","dau_nhot","nuoc_thai","createdBy","createdAt","updatedAt"],
+    desc: "Môi trường – Thống kê chất thải theo tháng/năm"
+  },
+
   // ── PCCC & CNCH ──
   pt_cc_cnch_types: {
     cols: ["id","name","createdBy","createdAt"],
