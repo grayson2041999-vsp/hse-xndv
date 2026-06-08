@@ -98,6 +98,7 @@
     @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
     .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;}
     .badge-blue{background:#dceaf7;color:#003087;}
+    .viewer-notice{font-size:12px;color:rgba(255,255,255,0.7);padding:5px 12px;border:1.5px solid rgba(255,255,255,0.35);border-radius:7px;}
   </style>
 </head>
 <body>
@@ -205,7 +206,10 @@
   <nav class="sidebar" id="sidebarNav"></nav>
   <div style="flex:1;">
     <div class="topbar">
-      <div style="font-size:15px;font-weight:700;">🌿 Môi trường</div>
+      <div>
+        <div style="font-size:11px;opacity:.75;">Liên doanh Việt - Nga Vietsovpetro</div>
+        <div style="font-size:12px;font-weight:700;opacity:.95;">Xí nghiệp Dịch vụ Cảng và Cung ứng vật tư thiết bị</div>
+      </div>
       <div class="topbar-right" id="topbarRight"></div>
     </div>
     <div class="main">
@@ -328,23 +332,31 @@ function doLogout(){localStorage.removeItem(K_SESS);location.reload();}
 // ── Sidebar ──
 (function buildSidebar(){
   var LINKS=[
-    {href:"tong-quan.html",icon:"🏠",label:"Tổng quan"},
-    {href:"ke-hoach.html",icon:"📅",label:"Kế hoạch"},
-    {href:"kiem-tra-cac-cap.html",icon:"✅",label:"Kiểm tra các cấp"},
-    {href:"huan-luyen-dao-tao.html",icon:"🎓",label:"Huấn luyện – Đào tạo"},
-    {href:"cap-phat-bhld.html",icon:"🦺",label:"Cấp phát BHLĐ"},
-    {href:"pccc-cnch.html",icon:"🔥",label:"PCCC & CNCH"},
-    {href:"moi-truong.html",icon:"🌿",label:"Môi trường",active:true},
-    {href:"jsa.html",icon:"📋",label:"JSA"},
-    {href:"bao-cao.html",icon:"📊",label:"Báo cáo"},
-    {href:"quan-tri-he-thong.html",icon:"⚙️",label:"Quản trị hệ thống"},
+    {href:"tong-quan.html",         icon:"📊", label:"Tổng quan"},
+    {href:"pccc-cnch.html",         icon:"🧯", label:"PCCC & CNCH"},
+    {href:"cap-phat-bhld.html",     icon:"🦺", label:"Cấp phát BHLĐ"},
+    {href:"huan-luyen-dao-tao.html",icon:"🎓", label:"Huấn luyện - Đào tạo"},
+    {href:"ung-pho-khan-cap.html",  icon:"🚨", label:"Ứng phó tình huống khẩn cấp"},
+    {href:"jsa.html",               icon:"📝", label:"JSA"},
+    {href:"sop.html",               icon:"📑", label:"SOP"},
+    {href:"kiem-tra-cac-cap.html",  icon:"🔍", label:"Kiểm tra các cấp"},
+    {href:"quan-ly-thiet-bi.html",  icon:"⚙️", label:"Quản lý thiết bị"},
+    {href:"kham-suc-khoe.html",     icon:"🩺", label:"Khám sức khoẻ nghề nghiệp"},
+    {href:"an-toan-dien.html",      icon:"⚡", label:"An toàn điện"},
+    {href:"an-toan-giao-thong.html",icon:"🚧", label:"An toàn giao thông"},
+    {href:"moi-truong.html",        icon:"🌿", label:"Môi trường", active:true},
+    {href:"quan-ly-hoa-chat.html",  icon:"🧪", label:"Quản lý hóa chất"},
+    {href:"quan-ly-nha-thau.html",  icon:"👷", label:"Quản lý nhà thầu"},
+    {href:"ke-hoach.html",          icon:"🗓️", label:"Kế hoạch"},
+    {href:"bao-cao.html",           icon:"📈", label:"Báo cáo"},
+    {href:"quan-tri-he-thong.html", icon:"🛡️", label:"Quản trị hệ thống", adminOnly:true},
   ];
+  var u=currentUser();
   var nav=document.getElementById("sidebarNav");
   if(!nav)return;
-  var html='<div style="padding:16px 18px 8px;border-bottom:1px solid rgba(255,255,255,0.12);margin-bottom:6px;">'+
-    '<div style="font-size:13px;font-weight:700;color:#fff;line-height:1.3;">HSE · Cảng &amp; CƯVTTB</div>'+
-    '<div style="font-size:10.5px;color:rgba(255,255,255,0.5);margin-top:2px;">Vietsovpetro</div></div>';
+  var html='';
   LINKS.forEach(function(l){
+    if(l.adminOnly && !isAdmin(u)) return;
     html+='<a href="'+l.href+'" class="nav-item'+(l.active?' active':'')+'">'+l.icon+' '+esc(l.label)+'</a>';
   });
   nav.innerHTML=html;
@@ -360,7 +372,7 @@ function buildTopbar(){
       ' <span class="badge badge-blue" style="font-size:10px;">'+roleLabel(u.role)+'</span></div>'+
       '<button class="btn-login" onclick="doLogout()">Đăng xuất</button>';
   } else {
-    el.innerHTML='<button class="btn-login" onclick="openLoginModal()">Đăng nhập</button>';
+    el.innerHTML='<span class="viewer-notice">Chế độ xem</span>';
   }
 }
 
@@ -549,6 +561,12 @@ function confirmSave(){
   data.createdBy=u?u.username:'';
   data.updatedAt=new Date().toISOString();
 
+  // Đảm bảo DB đã init và biết user hiện tại
+  if(typeof DB!=="undefined"){
+    DB.init();
+    if(u)DB.setUser(u.username);
+  }
+
   var all=getAllRecords();
   if(id){
     data.id=id;
@@ -559,8 +577,23 @@ function confirmSave(){
     if(typeof DB!=="undefined"){
       setSyncStatus("syncing","Đang lưu...");
       DB.update(SH_MT,id,data)
-        .then(function(){setSyncStatus("ok","Đã lưu");})
-        .catch(function(){setSyncStatus("err","Lỗi lưu Sheets");});
+        .then(function(){setSyncStatus("ok","Đã lưu vào Sheets ✓");})
+        .catch(function(e){
+          var msg=e&&e.message||"";
+          // Nếu Sheets không tìm thấy ID (sheet bị xoá/tạo lại) → insert mới
+          if(msg.indexOf("Không tìm thấy")>=0||msg.indexOf("id=")>=0){
+            console.warn("[MT] ID không tồn tại trên Sheets, chuyển sang insert:",id);
+            DB.insert(SH_MT,data)
+              .then(function(){setSyncStatus("ok","Đã lưu vào Sheets ✓");})
+              .catch(function(e2){
+                setSyncStatus("err","Lỗi Sheets: "+(e2&&e2.message||"unknown"));
+                console.error("[MT] insert fallback failed",e2);
+              });
+          } else {
+            setSyncStatus("err","Lỗi Sheets: "+msg);
+            console.error("[MT] update failed",e);
+          }
+        });
     }
   } else {
     data.id=Date.now().toString(36)+Math.random().toString(36).slice(2,6);
@@ -570,8 +603,11 @@ function confirmSave(){
     if(typeof DB!=="undefined"){
       setSyncStatus("syncing","Đang lưu...");
       DB.insert(SH_MT,data)
-        .then(function(){setSyncStatus("ok","Đã lưu");})
-        .catch(function(){setSyncStatus("err","Lỗi lưu Sheets");});
+        .then(function(){setSyncStatus("ok","Đã lưu vào Sheets ✓");})
+        .catch(function(e){
+          setSyncStatus("err","Lỗi Sheets: "+(e&&e.message||"unknown"));
+          console.error("[MT] insert failed",e);
+        });
     }
   }
   closeEditModal();
