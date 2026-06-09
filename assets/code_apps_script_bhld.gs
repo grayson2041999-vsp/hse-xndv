@@ -106,10 +106,6 @@ var SCHEMA = {
     desc: "Nhóm trang bị bảo hộ lao động. loaiCo: 'quan_ao'|'giay'|'' (xác định cỡ khi cấp phát)"
   },
 
-  logs: {
-    cols: ["id","user","action","sheet","record_id","detail","timestamp"],
-    desc: "Nhật ký thao tác"
-  }
 };
 
 // ─────────── SETUP ───────────
@@ -339,14 +335,6 @@ function _ensureColumns(sh, obj) {
   });
 }
 
-function _log(user, action, sheetName, id, detail) {
-  try {
-    var logSh = SS.getSheetByName("logs");
-    if (logSh) {
-      logSh.appendRow([_genId(), user||"system", action, sheetName, id||"", detail||"", new Date().toISOString()]);
-    }
-  } catch(e) {}
-}
 
 function _cors(data) {
   return ContentService.createTextOutput(JSON.stringify(data))
@@ -391,14 +379,12 @@ function _handleInsert(params, body) {
     var row = _objToRow(sh, obj);
     sh.getRange(existingRow, 1, 1, row.length).setValues([row]);
     _applyTextFormatToCodeCols(sh);
-    _log(body.user, "upsert", params.sheet, obj.id, "");
     return { ok: true, data: obj };
   }
   _ensureColumns(sh, obj);
   var row = _objToRow(sh, obj);
   sh.appendRow(row);
   _applyTextFormatToCodeCols(sh);
-  _log(body.user, "insert", params.sheet, obj.id, "");
   return { ok: true, data: obj };
 }
 
@@ -419,7 +405,6 @@ function _handleUpdate(params, body) {
   var row = _objToRow(sh, updated);
   sh.getRange(rowNum, 1, 1, row.length).setValues([row]);
   _applyTextFormatToCodeCols(sh);
-  _log(body.user, "update", params.sheet, params.id, "");
   return { ok: true, data: updated };
 }
 
@@ -428,7 +413,6 @@ function _handleDelete(params, body) {
   var rowNum = _findRowById(sh, params.id);
   if (rowNum < 0) return { ok: false, error: "Không tìm thấy id=" + params.id };
   sh.deleteRow(rowNum);
-  _log((body||{}).user, "delete", params.sheet, params.id, "");
   return { ok: true };
 }
 

@@ -25,12 +25,8 @@ var SCHEMA = {
 
   // ── HỆ THỐNG ──
   users: {
-    cols: ["id","username","password","fullname","danhSo","role","perms","active","pendingApproval","created","updated"],
+    cols: ["id","username","password","fullname","danhSo","role","perms","capPhatUnits","active","pendingApproval","created","updated"],
     desc: "Tài khoản người dùng"
-  },
-  logs: {
-    cols: ["id","user","action","sheet","record_id","detail","timestamp"],
-    desc: "Nhật ký thao tác"
   },
 
   // ── MÔI TRƯỜNG ──
@@ -189,14 +185,6 @@ function _findRowById(sh, id) {
   return -1;
 }
 
-function _log(user, action, sheetName, id, detail) {
-  try {
-    var logSh = SS.getSheetByName("logs");
-    if (logSh) {
-      logSh.appendRow([_genId(), user||"system", action, sheetName, id||"", detail||"", new Date().toISOString()]);
-    }
-  } catch(e) {}
-}
 
 // ─────────── CORS RESPONSE ───────────
 function _cors(data) {
@@ -244,7 +232,6 @@ function _handleInsert(params, body) {
   }
   var row = _objToRow(sh, obj);
   sh.appendRow(row);
-  _log(body.user, "insert", params.sheet, obj.id, "");
   return { ok: true, data: obj };
 }
 
@@ -256,7 +243,6 @@ function _handleUpdate(params, body) {
   var updated = Object.assign({}, existing, body.data || body, { id: params.id, updated_at: new Date().toISOString() });
   var row = _objToRow(sh, updated);
   sh.getRange(rowNum, 1, 1, row.length).setValues([row]);
-  _log(body.user, "update", params.sheet, params.id, "");
   return { ok: true, data: updated };
 }
 
@@ -265,7 +251,6 @@ function _handleDelete(params, body) {
   var rowNum = _findRowById(sh, params.id);
   if (rowNum < 0) return { ok: false, error: "Không tìm thấy id=" + params.id };
   sh.deleteRow(rowNum);
-  _log((body||{}).user, "delete", params.sheet, params.id, "");
   return { ok: true };
 }
 
