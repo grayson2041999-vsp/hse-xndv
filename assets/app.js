@@ -689,6 +689,7 @@
             u[i].danhSo=data.danhSo||"";
             u[i].role=data.role;
             u[i].perms=data.perms;
+            u[i].capPhatUnits=data.capPhatUnits||[];
             u[i].updated=new Date().toISOString();
             if(data.password){ u[i].password=data.password; }
             if(data.approve){ u[i].active=true; u[i].pendingApproval=false; }
@@ -699,6 +700,7 @@
         u.push({ id:Date.now().toString(36), username:data.username,
           password:data.password, fullname:data.fullname,
           danhSo:data.danhSo||"", role:data.role, perms:data.perms,
+          capPhatUnits:data.capPhatUnits||[],
           active:true, created:new Date().toISOString() });
       }
       setUsers(u); draw($("#q").value); return true;
@@ -749,6 +751,7 @@
       '<div class="modal-f"><button class="btn btn-ghost" id="mc">Huỷ</button><button class="btn btn-accent" id="ms">Lưu</button></div></div>';
 
     var permBox = $("#m_perms",bg);
+    var CAP_PHAT_UNITS = ['Cảng biển','Căn cứ Kho - Giao nhận','Xưởng sửa chữa','Đội xe VTHH&PTTBCD','Đội xe VCHK','Bộ máy điều hành'];
     MENU.forEach(function(item){
       if(item.adminOnly) return;
       if(item.adminEditOnly) return;
@@ -757,13 +760,43 @@
       permBox.appendChild(lab);
     });
 
+    // Sub-panel phân quyền đơn vị con cho Cấp phát BHLĐ
+    var cpUnitWrap = document.createElement("div");
+    cpUnitWrap.id = "cpUnitWrap";
+    cpUnitWrap.style.cssText = "display:none;grid-column:1/-1;background:#f0f7ff;border:1.5px solid #b3d0f0;border-radius:8px;padding:12px 14px;margin-top:4px;";
+    cpUnitWrap.innerHTML = '<div style="font-size:12px;font-weight:700;color:#003087;margin-bottom:8px;">🦺 Đơn vị được phép xem trong Cấp phát BHLĐ</div>'+
+      '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px;" id="cpUnitGrid"></div>'+
+      '<div style="margin-top:8px;display:flex;gap:10px;"><a href="#" id="cpSelAll" style="font-size:12px;">chọn tất cả</a> · <a href="#" id="cpSelNone" style="font-size:12px;">bỏ chọn</a></div>';
+    permBox.parentNode.insertBefore(cpUnitWrap, permBox.nextSibling);
+    // Dùng querySelector trên cpUnitWrap vì bg chưa được thêm vào document DOM lúc này
+    var cpGrid = cpUnitWrap.querySelector("#cpUnitGrid");
+    CAP_PHAT_UNITS.forEach(function(u){
+      var lab = el("label","perm-item");
+      lab.innerHTML='<input type="checkbox" value="'+u+'"><span>'+u+'</span>';
+      cpGrid.appendChild(lab);
+    });
+    cpUnitWrap.querySelector("#cpSelAll").addEventListener("click",function(e){e.preventDefault();cpGrid.querySelectorAll("input").forEach(function(c){c.checked=true;});});
+    cpUnitWrap.querySelector("#cpSelNone").addEventListener("click",function(e){e.preventDefault();cpGrid.querySelectorAll("input").forEach(function(c){c.checked=false;});});
+
+    function getCapPhatUnits(){ var a=[]; cpGrid.querySelectorAll("input:checked").forEach(function(c){a.push(c.value);}); return a; }
+    function setCapPhatUnits(arr){ cpGrid.querySelectorAll("input").forEach(function(c){c.checked=arr.indexOf(c.value)!==-1;}); }
+    function updateCpUnitWrap(){
+      var cpChk = permBox.querySelector("input[value='cap-phat-bhld']");
+      var isAdm = $("#m_role",bg).value==="admin";
+      cpUnitWrap.style.display = (!isAdm && cpChk && cpChk.checked) ? "block" : "none";
+    }
+    // Lắng nghe thay đổi trên checkbox cap-phat-bhld
+    var cpChkEl = permBox.querySelector("input[value='cap-phat-bhld']");
+    if(cpChkEl) cpChkEl.addEventListener("change", updateCpUnitWrap);
+
     var editing = null;
-    function setPerms(arr){ Array.prototype.forEach.call(permBox.querySelectorAll("input"), function(c){ c.checked=arr.indexOf(c.value)!==-1; }); }
+    function setPerms(arr){ Array.prototype.forEach.call(permBox.querySelectorAll("input"), function(c){ c.checked=arr.indexOf(c.value)!==-1; }); updateCpUnitWrap(); }
     function getPerms(){ var a=[]; Array.prototype.forEach.call(permBox.querySelectorAll("input:checked"), function(c){ a.push(c.value); }); return a; }
     function toggleRoleUI(){
       var isAdm = $("#m_role",bg).value==="admin";
       $("#m_perms",bg).style.display=isAdm?"none":"grid";
       $("#adminNote",bg).style.display=isAdm?"block":"none";
+      updateCpUnitWrap();
     }
 
     var api = { bg:bg, onSave:null };
@@ -781,6 +814,7 @@
       if(pwWrap) pwWrap.style.display=user?"none":"block";
       $("#m_role",bg).value=user?user.role:"user";
       setPerms(user?(user.role==="admin"?[]:(user.perms||[])):[]);
+      setCapPhatUnits(user?(Array.isArray(user.capPhatUnits)?user.capPhatUnits:[]):[]);
       toggleRoleUI();
       // Hiện ô phê duyệt nếu tài khoản đang chờ
       var approveWrap=document.getElementById("m_approve_wrap");
@@ -818,10 +852,11 @@
       if(pw && pw.length<6){ alert("Mật khẩu phải có tối thiểu 6 ký tự."); return; }
       if(pw && pw!==pw2){ alert("Mật khẩu xác nhận không khớp."); return; }
       var perms = role==="admin" ? allSlugs() : getPerms();
+      var capPhatUnits = role==="admin" ? CAP_PHAT_UNITS : getCapPhatUnits();
       var approve = document.getElementById("m_approve") && document.getElementById("m_approve").checked;
       var saveBtn=document.getElementById("ms"); if(saveBtn){saveBtn.disabled=true;saveBtn.textContent="Đang lưu...";}
       function doSave(hashedPw){
-        var data={username:un, fullname:fn, danhSo:ds, role:role, perms:perms, password:hashedPw, pwHash:!!hashedPw, approve:approve};
+        var data={username:un, fullname:fn, danhSo:ds, role:role, perms:perms, capPhatUnits:capPhatUnits, password:hashedPw, pwHash:!!hashedPw, approve:approve};
         var ok=api.onSave && api.onSave(data, editing?editing.username:null);
         if(saveBtn){saveBtn.disabled=false;saveBtn.textContent="Lưu";}
         if(ok!==false) close();

@@ -21,7 +21,7 @@
  *  - danh_muc         : Danh mục BHLĐ (trang bị bảo hộ)
  *  - dinh_muc         : Định mức cấp phát theo chức danh
  *  - ton_kho          : Tồn kho hiện tại
- *  - lich_su_kho      : Lịch sử nhập/xuất kho
+ *  - lich_su_nhap_xuat      : Lịch sử nhập/xuất kho
  *  - quy_list         : Danh sách quý hợp lệ
  *  - logs             : Nhật ký thao tác
  * =========================================================
@@ -45,11 +45,13 @@ var SCHEMA = {
 
   phieu_requests: {
     cols: [
-      "id","donVi","quyStr","status","rows","totalLines",
+      "id","type","donVi","quyStr","status",
+      "nvId","nvTen","nvDanhSo","chucDanh","ngayVaoLam",
+      "items",
       "submittedBy","submittedAt","reviewedBy","reviewedAt",
       "rejectReason","createdAt","updatedAt"
     ],
-    desc: "Phiếu yêu cầu cấp phát theo quý (pending/approved/rejected)"
+    desc: "Phiếu yêu cầu cấp phát (type: quy | nv_moi) — pending/approved/rejected"
   },
 
   pending_changes: {
@@ -62,35 +64,31 @@ var SCHEMA = {
   },
 
   danh_muc: {
-    cols: [
-      "id","maVatTu","tenTrangBi","loai","nhom",
-      "donViTinh","hanSuDung","tieuChuan","createdAt","updatedAt"
-    ],
-    desc: "Danh mục trang bị bảo hộ lao động"
+    cols: ["id","nhomId","ma","ten","thuTu","createdAt","updatedAt"],
+    desc: "Chi tiết trang bị bảo hộ (mã vật tư + tên + nhomId → nhom_tb)"
+  },
+
+  chuc_danh: {
+    cols: ["id","ten","createdAt","updatedAt"],
+    desc: "Danh mục chức danh. ten = tên chức danh (phải khớp với nhanvien.chucDanh)"
   },
 
   dinh_muc: {
-    cols: [
-      "id","chucDanh","trangBiId","soLuong","chuKy","canCu",
-      "createdAt","updatedAt"
-    ],
-    desc: "Định mức cấp phát theo chức danh"
+    cols: ["id","chucDanhId","nhomTBId","chuKy","thuTu","createdAt","updatedAt"],
+    desc: "Định mức cấp phát: chucDanhId → chuc_danh, nhomTBId → nhom_tb"
   },
 
   ton_kho: {
-    cols: [
-      "id","trangBiId","tenTrangBi","soLuong","donViTinh",
-      "updatedAt","updatedBy"
-    ],
-    desc: "Tồn kho hiện tại"
+    cols: ["id","soLuong"],
+    desc: "Tồn kho hiện tại — id = danh_muc.id, soLuong = số lượng hiện có"
   },
 
-  lich_su_kho: {
+  lich_su_nhap_xuat: {
     cols: [
-      "id","loai","trangBiId","tenTrangBi","soLuong",
-      "ghiChu","nguoiThucHien","ngayGiaoDich","createdAt"
+      "id","tenGiaoDich","loai","tbId","maVatTu","tenTrangBi",
+      "soLuong","donViNhan","nguoiThucHien","thangGiaoDich","ghiChu","createdAt"
     ],
-    desc: "Lịch sử nhập/xuất kho"
+    desc: "Lịch sử nhập/xuất kho — 1 dòng per vật tư per giao dịch"
   },
 
   nhom_nv: {
@@ -101,6 +99,11 @@ var SCHEMA = {
   quy_list: {
     cols: ["id","quyStr","createdAt"],
     desc: "Danh sách quý hợp lệ để lập phiếu"
+  },
+
+  nhom_tb: {
+    cols: ["id","ten","loaiCo","donVi","createdAt","updatedAt"],
+    desc: "Nhóm trang bị bảo hộ lao động. loaiCo: 'quan_ao'|'giay'|'' (xác định cỡ khi cấp phát)"
   },
 
   logs: {
@@ -125,6 +128,16 @@ function setupSheets() {
   });
   SpreadsheetApp.flush();
   Logger.log("✅ Đã tạo " + Object.keys(SCHEMA).length + " sheets BHLĐ thành công!");
+}
+
+// Chạy 1 lần để fix format Plain text cho các cột mã số trên tất cả sheets
+function fixTextFormat() {
+  Object.keys(SCHEMA).forEach(function(name) {
+    var sh = SS.getSheetByName(name);
+    if (sh) _applyTextFormatToCodeCols(sh);
+  });
+  SpreadsheetApp.flush();
+  Logger.log("✅ Đã set Plain text format cho tất cả cột mã số!");
 }
 
 // ─────────── TIỆN ÍCH IMPORT ───────────
@@ -274,13 +287,28 @@ function _getHeaders(sh) {
   return sh.getRange(1, 1, 1, lastCol).getValues()[0];
 }
 
+// Các field luôn phải lưu dạng text (không để Sheet tự convert thành số)
+var TEXT_FIELDS = ["ma","maVatTu","id","maDinhDanh","danhSo"];
+
 function _objToRow(sh, obj) {
   var headers = _getHeaders(sh);
   return headers.map(function(h) {
     var v = obj[h];
     if (v === undefined || v === null) return "";
     if (typeof v === "object") return JSON.stringify(v);
+    // Ép string cho các field mã số để tránh Sheet tự format thành số
+    if (TEXT_FIELDS.indexOf(h) >= 0) return String(v);
     return v;
+  });
+}
+
+// Set number format "@" (Plain text) cho các cột mã số trong 1 sheet
+function _applyTextFormatToCodeCols(sh) {
+  var headers = _getHeaders(sh);
+  headers.forEach(function(h, i) {
+    if (TEXT_FIELDS.indexOf(h) >= 0) {
+      sh.getRange(2, i+1, Math.max(sh.getLastRow()-1, 1), 1).setNumberFormat("@");
+    }
   });
 }
 
@@ -293,15 +321,16 @@ function _findRowById(sh, id) {
 }
 
 function _ensureColumns(sh, obj) {
-  // Chỉ thêm cột nếu field đó có trong SCHEMA của sheet tương ứng
-  // Tránh tự động tạo cột rác từ field cũ / field không thuộc schema
   var sheetName = sh.getName();
   var allowedCols = SCHEMA[sheetName] ? SCHEMA[sheetName].cols : null;
-  var headers = _getHeaders(sh);
+  // Đọc lại headers trực tiếp từ sheet (không dùng cache) để tránh race condition
+  var headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(String);
   Object.keys(obj).forEach(function(k) {
     if (headers.indexOf(k) < 0) {
-      // Nếu sheet có schema: chỉ tạo cột khi field thuộc schema
       if (allowedCols && allowedCols.indexOf(k) < 0) return;
+      // Kiểm tra lại lần nữa ngay trước khi thêm (double-check)
+      var currentHeaders = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(String);
+      if (currentHeaders.indexOf(k) >= 0) return; // đã tồn tại, bỏ qua
       var newCol = sh.getLastColumn() + 1;
       sh.getRange(1, newCol).setValue(k)
         .setBackground("#003087").setFontColor("#ffffff").setFontWeight("bold");
@@ -355,9 +384,20 @@ function _handleInsert(params, body) {
   var obj = body.data || body;
   if (!obj.id) obj.id = _genId();
   if (!obj.createdAt) obj.createdAt = new Date().toISOString();
+  // Upsert: nếu id đã tồn tại → update thay vì thêm dòng mới
+  var existingRow = _findRowById(sh, obj.id);
+  if (existingRow >= 0) {
+    _ensureColumns(sh, obj);
+    var row = _objToRow(sh, obj);
+    sh.getRange(existingRow, 1, 1, row.length).setValues([row]);
+    _applyTextFormatToCodeCols(sh);
+    _log(body.user, "upsert", params.sheet, obj.id, "");
+    return { ok: true, data: obj };
+  }
   _ensureColumns(sh, obj);
   var row = _objToRow(sh, obj);
   sh.appendRow(row);
+  _applyTextFormatToCodeCols(sh);
   _log(body.user, "insert", params.sheet, obj.id, "");
   return { ok: true, data: obj };
 }
@@ -366,7 +406,8 @@ function _handleUpdate(params, body) {
   var sh = _getSheet(params.sheet, true);
   var rowNum = _findRowById(sh, params.id);
   if (rowNum < 0) {
-    // Nếu không tìm thấy → insert mới (upsert)
+    // Nếu không tìm thấy → insert mới (upsert), gắn id từ params vào data
+    body.data = Object.assign({ id: params.id }, body.data || {});
     return _handleInsert(params, body);
   }
   var existing = _sheetToObjects(sh).find(function(r) { return String(r.id) === String(params.id); });
@@ -377,6 +418,7 @@ function _handleUpdate(params, body) {
   _ensureColumns(sh, updated);
   var row = _objToRow(sh, updated);
   sh.getRange(rowNum, 1, 1, row.length).setValues([row]);
+  _applyTextFormatToCodeCols(sh);
   _log(body.user, "update", params.sheet, params.id, "");
   return { ok: true, data: updated };
 }

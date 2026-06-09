@@ -22,8 +22,8 @@ var BHLD = (function() {
   // ── Danh sách sheet cần pull ──
   var PULL_SHEETS = [
     'nhanvien', 'phieu_requests', 'pending_changes',
-    'danh_muc', 'dinh_muc', 'ton_kho', 'lich_su_kho',
-    'nhom_nv', 'quy_list'
+    'danh_muc', 'dinh_muc', 'ton_kho', 'lich_su_nhap_xuat',
+    'nhom_nv', 'quy_list', 'nhom_tb', 'chuc_danh'
   ];
 
   // ── Map sheet → localStorage key ──
@@ -34,9 +34,11 @@ var BHLD = (function() {
     'danh_muc':        'bhld_danh_muc',
     'dinh_muc':        'bhld_dinh_muc',
     'ton_kho':         'bhld_ton_kho',
-    'lich_su_kho':     'bhld_lich_su_kho',
+    'lich_su_nhap_xuat': 'bhld_lich_su_nhap_xuat',
     'nhom_nv':         'bhld_nhom_nv',
-    'quy_list':        'bhld_quy_list'
+    'quy_list':        'bhld_quy_list',
+    'nhom_tb':         'bhld_nhom_tb',
+    'chuc_danh':       'bhld_chuc_danh'
   };
 
   // ─── Helpers ───
@@ -143,6 +145,22 @@ var BHLD = (function() {
       });
   }
 
+  // ─── Push: Bulk Insert (nhiều dòng trong 1 request) ───
+  function bulkInsert(sheet, rows) {
+    if (!rows || !rows.length) return Promise.resolve({ ok: true, count: 0 });
+    var now = new Date().toISOString();
+    rows.forEach(function(obj) {
+      if (!obj.id) obj.id = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+      if (!obj.createdAt) obj.createdAt = now;
+    });
+    if (!getUrl()) return Promise.resolve({ ok: true, local: true });
+    return _apiFetch({ action: 'bulkWrite', sheet: sheet }, 'POST', { data: rows })
+      .then(function(res) {
+        if (!res.ok) throw new Error(res.error || 'bulkInsert thất bại');
+        return res;
+      });
+  }
+
   // ─── Push: Update ───
 
   function update(sheet, id, changes) {
@@ -199,7 +217,7 @@ var BHLD = (function() {
     lsGet: lsGet,
     lsSet: lsSet,
     pull: pull,
-    push: { insert: insert, update: update, delete: remove },
+    push: { insert: insert, bulkInsert: bulkInsert, update: update, delete: remove },
     testConnection: testConnection,
     LS_MAP: LS_MAP
   };
