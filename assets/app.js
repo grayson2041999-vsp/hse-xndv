@@ -549,7 +549,13 @@
       '<div class="page-desc" style="margin-bottom:4px">'+greeting+'</div>'+
       '<div style="font-size:12px;color:var(--text-muted);margin-bottom:20px">'+ORG+' · '+ORG_PARENT+'</div>'));
 
-    // Pull kế hoạch từ Sheets trước khi render (nếu DB sẵn sàng)
+    // Render ngay bằng data localStorage (không chờ mạng)
+    renderKeHoachDashboard(wrap);
+    renderShell("tong-quan", wrap);
+    var dl = document.getElementById("dashLoginLink");
+    if(dl){ dl.addEventListener("click", function(e){ e.preventDefault(); openLoginModal(); }); }
+
+    // Fetch ngầm — cập nhật lại phần kế hoạch khi có data mới
     if(typeof DB !== "undefined" && DB.isReady()){
       Promise.all([
         DB.getAll("ke_hoach_mot_lan").then(function(rows){
@@ -594,16 +600,13 @@
           });
         });
         save("hse_ke_hoach_links", allLinks);
-        renderKeHoachDashboard(wrap);
-        renderShell("tong-quan", wrap);
-        var dl = document.getElementById("dashLoginLink");
-        if(dl){ dl.addEventListener("click", function(e){ e.preventDefault(); openLoginModal(); }); }
-      });
-    } else {
-      renderKeHoachDashboard(wrap);
-      renderShell("tong-quan", wrap);
-      var dl = document.getElementById("dashLoginLink");
-      if(dl){ dl.addEventListener("click", function(e){ e.preventDefault(); openLoginModal(); }); }
+        // Chỉ cập nhật phần kế hoạch, không render lại toàn trang
+        var existing = document.getElementById("dash-kh-section");
+        if(existing){
+          var tmp = el("div"); renderKeHoachDashboard(tmp);
+          existing.parentNode.replaceChild(tmp.lastChild, existing);
+        }
+      }).catch(function(){});
     }
   }
 
@@ -1317,6 +1320,7 @@
       }
     }
 
+    section.id = "dash-kh-section";
     wrap.appendChild(section);
   }
 
