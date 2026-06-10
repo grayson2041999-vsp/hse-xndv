@@ -2185,30 +2185,41 @@ function approvePhieu(id){
     }
   } else if(p.type==='quy'){
     // Cập nhật thangCap cho từng nhân viên dựa trên items của phiếu
-    const qMonths=getQuarterMonths(p.quyStr);const quyMid=qMonths[1]||qMonths[0]; // tháng giữa quý
     items.forEach(it=>{
       if(!it.nvId)return;
       const nv=daNhanVien.find(n=>String(n.id)===String(it.nvId));if(!nv)return;
       if(it.thucTe===''||it.thucTe===undefined||parseFloat(it.thucTe)===0)return; // không cấp = không cập nhật
-      const tb=getTB(it.tbId);if(!tb)return;
+
+      // Bug fix: it.tbId có thể là id của daDanhMuc (có size), không phải nhomTB
+      // → fallback qua daDanhMuc.nhomId để lấy nhomTB đúng
+      const dmItem=daDanhMuc.find(x=>String(x.id)===String(it.tbId));
+      const tb=getTB(it.tbId)||(dmItem?getTB(dmItem.nhomId):null);
+      if(!tb)return;
+
       const tenTB=tb.ten||'';
-      if(tenTB.includes('Găng tay')||tenTB==='Khẩu trang')return; // quarterly
-      if(tenTB.includes('Mũ')){
-        const changes={thangCapMu:quyMid};
-        const idx=daNhanVien.findIndex(n=>String(n.id)===String(it.nvId));
-        if(idx>=0){daNhanVien[idx]={...daNhanVien[idx],...changes};BHLD.push.update('nhanvien',it.nvId,changes);}
-        return;
-      }
+      if(tenTB.includes('Găng tay')||tenTB==='Khẩu trang')return; // quarterly — skip
+
+      // Tìm định mức để lấy chuKy → tính thangCap mới = thangCap_cũ + chuKy
+      const _cd=getChucDanhByTen(nv.chucDanh);
+      const dmEntry=daDinhMuc.find(d=>
+        ((_cd&&d.chucDanhId==_cd.id)||d.chucDanh===nv.chucDanh)&&
+        (d.trangBiId==tb.id||d.nhomTBId==tb.id)
+      );
+      const nextMonth=dmEntry?tinhThangCapTiepTheo(nv,dmEntry):null;
+      if(!nextMonth||nextMonth==='quarterly')return;
+
       let field=null;
-      if(tb.loaiCo==='quan_ao'&&tenTB!=='Áo mưa'&&tenTB!=='Bộ quần áo thợ hàn')field='thangCapQuanAo';
+      if(tenTB.includes('Mũ'))field='thangCapMu';
+      else if(tb.loaiCo==='quan_ao'&&tenTB!=='Áo mưa'&&tenTB!=='Bộ quần áo thợ hàn')field='thangCapQuanAo';
       else if(tenTB==='Áo mưa')field='thangCapAoMua';
       else if(tenTB==='Bộ quần áo thợ hàn')field='thangCapQAHan';
       else if(tb.loaiCo==='giay')field='thangCapGiay';
       else if(tenTB==='Kính bảo hộ')field='thangCapKinh';
       if(!field)return;
+
       const idx=daNhanVien.findIndex(n=>String(n.id)===String(it.nvId));
       if(idx<0)return;
-      const changes={[field]:quyMid};
+      const changes={[field]:nextMonth};
       daNhanVien[idx]={...daNhanVien[idx],...changes};
       BHLD.push.update('nhanvien',it.nvId,changes);
     });
