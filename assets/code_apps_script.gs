@@ -91,6 +91,12 @@ var SCHEMA = {
   kiem_tra_cap34: {
     cols: ["id","type","tenKhac","ngayKT","noiKT","doanKT","violations","createdBy","createdAt"],
     desc: "Kiểm tra Cấp 3, Cấp IV & Khác"
+  },
+
+  // ── KHÁM SỨC KHOẺ ──
+  ksk: {
+    cols: ["id","nam","loai","tong","da_kham","updatedBy","updatedAt","created_at"],
+    desc: "Khám sức khoẻ – Tiến độ khám SK định kỳ & bệnh nghề nghiệp (loai: dinh_ky/benh_nghe_1/benh_nghe_2)"
   }
 };
 
