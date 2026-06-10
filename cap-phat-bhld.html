@@ -2184,7 +2184,8 @@ function approvePhieu(id){
       BHLD.push.update('nhanvien',nv.id,changes);
     }
   } else if(p.type==='quy'){
-    // Cập nhật thangCap cho từng nhân viên dựa trên items của phiếu
+    // Gom changes theo nvId để push 1 lần/nhân viên, tránh race condition
+    const changesPerNv={};
     items.forEach(it=>{
       if(!it.nvId)return;
       const nv=daNhanVien.find(n=>String(n.id)===String(it.nvId));if(!nv)return;
@@ -2227,10 +2228,13 @@ function approvePhieu(id){
 
       const idx=daNhanVien.findIndex(n=>String(n.id)===String(it.nvId));
       if(idx<0)return;
-      const changes={[field]:nextMonth};
-      daNhanVien[idx]={...daNhanVien[idx],...changes};
-      BHLD.push.update('nhanvien',it.nvId,changes);
+      // Cập nhật localStorage ngay
+      if(!changesPerNv[it.nvId])changesPerNv[it.nvId]={};
+      changesPerNv[it.nvId][field]=nextMonth;
+      daNhanVien[idx]={...daNhanVien[idx],[field]:nextMonth};
     });
+    // Push lên sheet: 1 request duy nhất mỗi nhân viên (tránh race condition)
+    Object.entries(changesPerNv).forEach(([nvId,ch])=>BHLD.push.update('nhanvien',nvId,ch));
     saveData('nhanvien',daNhanVien);BHLD.lsSet('nhanvien',daNhanVien);
   }
 
