@@ -105,20 +105,6 @@
 <script src="assets/db.js"></script>
 <script src="assets/app.js"></script>
 
-<!-- Login Modal -->
-<div id="loginModal">
-  <div class="login-box">
-    <div class="login-title">🔐 Đăng nhập</div>
-    <div class="login-err" id="loginErr"></div>
-    <div class="form-group"><label class="form-label">Tên đăng nhập</label><input class="form-input" id="loginUn" placeholder="username"></div>
-    <div class="form-group"><label class="form-label">Mật khẩu</label><input class="form-input" type="password" id="loginPw" placeholder="••••••"></div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;">
-      <button class="btn btn-outline btn-sm" onclick="closeLoginModal()">Huỷ</button>
-      <button class="btn btn-primary btn-sm" onclick="doLogin()">Đăng nhập</button>
-    </div>
-  </div>
-</div>
-
 <!-- Edit / Add Modal -->
 <div class="modal-overlay" id="editModal">
   <div class="modal">
@@ -225,7 +211,6 @@
             <span id="syncText">—</span>
           </div>
         </div>
-        <div id="actionBtns"></div>
       </div>
 
       <div class="stat-grid" id="statCards"></div>
@@ -307,26 +292,7 @@ function canEdit(u){
 }
 function roleLabel(r){return r==="admin"?"Admin":(r==="viewer"?"Viewer":"User");}
 
-// ── Login ──
-function openLoginModal(){
-  document.getElementById("loginModal").classList.add("open");
-  setTimeout(function(){document.getElementById("loginUn").focus();},50);
-}
-function closeLoginModal(){document.getElementById("loginModal").classList.remove("open");}
-function doLogin(){
-  var un=document.getElementById("loginUn").value.trim();
-  var pw=document.getElementById("loginPw").value;
-  var errEl=document.getElementById("loginErr");
-  if(typeof HSE!=="undefined"&&HSE.login){
-    HSE.login(un,pw,function(r){
-      if(r.ok){closeLoginModal();location.reload();}
-      else{errEl.textContent=r.msg;errEl.style.display="block";}
-    });
-  }
-}
-document.addEventListener("keydown",function(e){
-  if(e.key==="Enter"&&document.getElementById("loginModal").classList.contains("open"))doLogin();
-});
+// ── Logout (đăng nhập thực hiện ở trang Tổng quan) ──
 function doLogout(){localStorage.removeItem(K_SESS);location.reload();}
 
 // ── Sidebar ──
@@ -420,22 +386,6 @@ function safePull(){
   }).catch(function(){
     setSyncStatus("err","Lỗi kết nối");
     renderTable();
-  });
-}
-
-function syncFromSheets(){
-  if(typeof DB==="undefined"){alert("DB module chưa sẵn sàng.");return;}
-  setSyncStatus("syncing","Đang đồng bộ...");
-  DB.getAll(SH_MT).then(function(rows){
-    if(rows&&rows.length){
-      saveAllRecords(rows);
-      setSyncStatus("ok","Đã đồng bộ – "+rows.length+" bản ghi");
-    } else {
-      setSyncStatus("ok","Không có dữ liệu mới");
-    }
-    renderTable();
-  }).catch(function(e){
-    setSyncStatus("err","Lỗi: "+(e&&e.message||"unknown"));
   });
 }
 
@@ -623,17 +573,11 @@ window.addEventListener("DOMContentLoaded",function(){
   var desc=document.getElementById("pageDesc");
   if(desc){
     if(!u)
-      desc.innerHTML='Bạn đang xem ở chế độ khách. <a href="#" onclick="openLoginModal();return false;" style="color:var(--primary-light);font-weight:600;">Đăng nhập</a> để nhập liệu.';
+      desc.textContent='Bạn đang xem ở chế độ khách.';
     else if(canEdit(u))
       desc.textContent='Bạn có quyền nhập và chỉnh sửa số liệu môi trường.';
     else
       desc.textContent='Bạn chỉ có quyền xem số liệu môi trường.';
-  }
-
-  // Action buttons
-  var btns=document.getElementById("actionBtns");
-  if(btns&&canEdit(u)){
-    btns.innerHTML='<button class="btn btn-outline btn-sm" onclick="syncFromSheets()">↓ Đồng bộ từ Sheets</button>';
   }
 
   safePull();
