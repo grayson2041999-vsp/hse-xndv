@@ -2201,10 +2201,18 @@ function approvePhieu(id){
 
       // Tìm định mức để lấy chuKy → tính thangCap mới = thangCap_cũ + chuKy
       const _cd=getChucDanhByTen(nv.chucDanh);
-      const dmEntry=daDinhMuc.find(d=>
-        ((_cd&&d.chucDanhId==_cd.id)||d.chucDanh===nv.chucDanh)&&
-        (d.trangBiId==tb.id||d.nhomTBId==tb.id)
-      );
+      const dmEntry=daDinhMuc.find(d=>{
+        if(!((_cd&&d.chucDanhId==_cd.id)||d.chucDanh===nv.chucDanh))return false;
+        // Khớp trực tiếp (nam, hoặc nhomTB không phải quần áo nữ)
+        if(d.trangBiId==tb.id||d.nhomTBId==tb.id)return true;
+        // Bộ quần áo nữ (id=104): định mức lưu là áo liền quần/quần áo rời
+        // → tìm bất kỳ định mức quần áo nào, loại trừ QA thợ hàn
+        if(tenTB==='Bộ quần áo nữ'){
+          const dTb=getTB(d.trangBiId||d.nhomTBId);
+          return dTb&&dTb.loaiCo==='quan_ao'&&dTb.ten!=='Bộ quần áo thợ hàn';
+        }
+        return false;
+      });
       const nextMonth=dmEntry?tinhThangCapTiepTheo(nv,dmEntry):null;
       if(!nextMonth||nextMonth==='quarterly')return;
 
