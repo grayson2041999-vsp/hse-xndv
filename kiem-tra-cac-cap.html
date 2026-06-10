@@ -224,8 +224,88 @@
 
     <!-- TAB BAR -->
     <div class="tab-bar" id="tabBar">
+      <button class="tab-btn active" onclick="switchTab('baocao')">📊 Báo cáo</button>
+      <button class="tab-btn" onclick="switchTab('danhsach')">📑 Danh sách</button>
       <button class="tab-btn" id="tabBtnNhap" onclick="switchTab('nhap')" style="display:none;">➕ Nhập mới</button>
-      <button class="tab-btn active" onclick="switchTab('danhsach')">📑 Danh sách</button>
+    </div>
+
+    <!-- ─── TAB: BÁO CÁO ─── -->
+    <div class="tab-pane active" id="tab-baocao">
+      <div class="section-card">
+        <div class="section-card-head" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+          <div class="section-card-title">📊 Báo cáo kiểm tra an toàn</div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <label style="font-size:13px;font-weight:600;color:var(--text-light);">Năm:</label>
+            <select id="bcNam" class="inp" style="width:auto;padding:6px 12px;" onchange="renderBaoCao()">
+              <option value="2026">2026</option>
+              <option value="2027">2027</option>
+              <option value="2028">2028</option>
+              <option value="2029">2029</option>
+              <option value="2030">2030</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Bảng 1: Cấp 1 & 2 -->
+        <div style="margin-top:18px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+            <div class="sec-div" style="margin-bottom:0;font-weight:700;color:var(--primary);">📋 Kiểm tra cấp 1 &amp; cấp 2 — theo đơn vị</div>
+            <select id="bcThang12" class="inp" style="width:auto;padding:5px 12px;font-size:13px;" onchange="renderBaoCao()">
+              <option value="q1">Quý I</option>
+              <option value="q2">Quý II</option>
+              <option value="q3">Quý III</option>
+              <option value="q4">Quý IV</option>
+            </select>
+          </div>
+          <div class="table-wrap" style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:13px;">
+              <thead>
+                <tr>
+                  <th rowspan="2" style="background:var(--primary);color:#fff;padding:8px 10px;border:1px solid #c0cbe0;text-align:left;min-width:160px;">Đơn vị</th>
+                  <th colspan="4" style="background:#1a56a0;color:#fff;padding:8px 10px;border:1px solid #c0cbe0;text-align:center;">Kiểm tra cấp 1</th>
+                  <th colspan="4" style="background:#2e7d32;color:#fff;padding:8px 10px;border:1px solid #c0cbe0;text-align:center;">Kiểm tra cấp 2</th>
+                </tr>
+                <tr>
+                  <th style="background:#dbeafe;padding:7px 10px;border:1px solid #c0cbe0;text-align:center;white-space:nowrap;">Số lần KT</th>
+                  <th style="background:#dbeafe;padding:7px 10px;border:1px solid #c0cbe0;text-align:center;white-space:nowrap;">Số vi phạm</th>
+                  <th style="background:#dbeafe;padding:7px 10px;border:1px solid #c0cbe0;text-align:center;white-space:nowrap;">Đã khắc phục</th>
+                  <th style="background:#dbeafe;padding:7px 10px;border:1px solid #c0cbe0;text-align:center;white-space:nowrap;">Đang khắc phục</th>
+                  <th style="background:#dcfce7;padding:7px 10px;border:1px solid #c0cbe0;text-align:center;white-space:nowrap;">Số lần KT</th>
+                  <th style="background:#dcfce7;padding:7px 10px;border:1px solid #c0cbe0;text-align:center;white-space:nowrap;">Số vi phạm</th>
+                  <th style="background:#dcfce7;padding:7px 10px;border:1px solid #c0cbe0;text-align:center;white-space:nowrap;">Đã khắc phục</th>
+                  <th style="background:#dcfce7;padding:7px 10px;border:1px solid #c0cbe0;text-align:center;white-space:nowrap;">Đang khắc phục</th>
+                </tr>
+              </thead>
+              <tbody id="bcTable12Body">
+                <tr><td colspan="9" style="text-align:center;padding:20px;color:var(--text-light);">Đang tải...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Bảng 2: Cấp 3, 4, khác -->
+        <div style="margin-top:28px;">
+          <div class="sec-div" style="margin-bottom:10px;font-weight:700;color:var(--primary);">📋 Kiểm tra cấp 3, cấp 4 &amp; khác — chi tiết</div>
+          <div class="table-wrap" style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:13px;">
+              <thead>
+                <tr>
+                  <th style="background:var(--primary);color:#fff;padding:8px 10px;border:1px solid #c0cbe0;text-align:center;width:36px;">STT</th>
+                  <th style="background:var(--primary);color:#fff;padding:8px 10px;border:1px solid #c0cbe0;text-align:left;">Loại kiểm tra</th>
+                  <th style="background:var(--primary);color:#fff;padding:8px 10px;border:1px solid #c0cbe0;text-align:center;white-space:nowrap;">Ngày kiểm tra</th>
+                  <th style="background:var(--primary);color:#fff;padding:8px 10px;border:1px solid #c0cbe0;text-align:center;white-space:nowrap;">Số vi phạm</th>
+                  <th style="background:var(--primary);color:#fff;padding:8px 10px;border:1px solid #c0cbe0;text-align:center;white-space:nowrap;">Đã khắc phục</th>
+                  <th style="background:var(--primary);color:#fff;padding:8px 10px;border:1px solid #c0cbe0;text-align:center;white-space:nowrap;">Đang khắc phục</th>
+                </tr>
+              </thead>
+              <tbody id="bcTable34Body">
+                <tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-light);">Đang tải...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
     </div>
 
     <!-- ─── TAB: NHẬP MỚI ─── -->
@@ -671,7 +751,7 @@ function buildTopbar(){
    TABS
 ═══════════════════════════════════════════════════ */
 function switchTab(tab){
-  ["nhap","danhsach"].forEach(function(t){
+  ["nhap","danhsach","baocao"].forEach(function(t){
     document.getElementById("tab-"+t).classList.toggle("active", t===tab);
   });
   document.querySelectorAll(".tab-btn").forEach(function(b){
@@ -679,6 +759,7 @@ function switchTab(tab){
     if(b.getAttribute("onclick")&&b.getAttribute("onclick").indexOf("'"+tab+"'")>=0) b.classList.add("active");
   });
   if(tab==="danhsach") renderList();
+  if(tab==="baocao") renderBaoCao();
 }
 
 
@@ -1072,6 +1153,122 @@ function loadData(){
 }
 
 /* ═══════════════════════════════════════════════════
+   BÁO CÁO
+═══════════════════════════════════════════════════ */
+function initBaoCaoFilters(){
+  var now=new Date();
+  var curYear=now.getFullYear();
+  // Set năm mặc định
+  var namSel=document.getElementById("bcNam");
+  namSel.value=Math.min(Math.max(curYear,2026),2030);
+  // Set quý mặc định cho bảng cấp 1&2
+  var curQuy=Math.ceil((now.getMonth()+1)/3);
+  document.getElementById("bcThang12").value="q"+curQuy;
+}
+
+function renderBaoCao(){
+  var nam=parseInt(document.getElementById("bcNam").value)||2026;
+  var thang12Val=document.getElementById("bcThang12").value; // "q1".."q4" hoặc "1".."12"
+
+  // Tính mStart/mEnd cho bảng 12
+  var mStart12,mEnd12;
+  if(thang12Val.startsWith("q")){
+    var q=parseInt(thang12Val.slice(1));
+    mStart12=(q-1)*3+1; mEnd12=q*3;
+  } else {
+    mStart12=mEnd12=parseInt(thang12Val);
+  }
+
+  var DON_VI=["Cảng biển","Căn cứ Kho - Giao nhận","Xưởng sửa chữa","Đội xe VTHH&PTTBCD","Đội xe VCHK"];
+
+  // Lọc dữ liệu cap12 theo tháng/quý + năm
+  var data12=load(LS_KEY12,[]).filter(function(r){
+    var ym=r.thang||""; // "YYYY-MM"
+    var parts=ym.split("-");
+    if(parts.length<2) return false;
+    var y=parseInt(parts[0]), m=parseInt(parts[1]);
+    return y===nam && m>=mStart12 && m<=mEnd12;
+  });
+
+  // Tính bảng 1
+  var tbody12=document.getElementById("bcTable12Body");
+  var rows12="";
+  var totals={c1:{lan:0,vp:0,da:0,dang:0},c2:{lan:0,vp:0,da:0,dang:0}};
+  DON_VI.forEach(function(dv){
+    var c1={lan:0,vp:0,da:0,dang:0};
+    var c2={lan:0,vp:0,da:0,dang:0};
+    data12.forEach(function(r){
+      if(r.donVi!==dv) return;
+      var vps=r.violations?(typeof r.violations==="string"?JSON.parse(r.violations):r.violations):[];
+      var daKP=vps.filter(function(v){return v.tinhTrangKP==="hoan-thanh";}).length;
+      var dangKP=vps.filter(function(v){return v.tinhTrangKP==="dang";}).length;
+      if(r.type==="cap1"){
+        c1.lan+=parseInt(r.soLanKiemTra)||0;
+        c1.vp+=vps.length;
+        c1.da+=daKP; c1.dang+=dangKP;
+      } else if(r.type==="cap2"){
+        c2.lan+=parseInt(r.soLanKiemTra)||0;
+        c2.vp+=vps.length;
+        c2.da+=daKP; c2.dang+=dangKP;
+      }
+    });
+    ["c1","c2"].forEach(function(k){totals[k].lan+=k==="c1"?c1.lan:c2.lan;totals[k].vp+=k==="c1"?c1.vp:c2.vp;totals[k].da+=k==="c1"?c1.da:c2.da;totals[k].dang+=k==="c1"?c1.dang:c2.dang;});
+    function td(v,bg){return '<td style="padding:7px 10px;border:1px solid #e2e8f0;text-align:center;background:'+bg+';">'+v+'</td>';}
+    rows12+='<tr>'+
+      '<td style="padding:7px 10px;border:1px solid #e2e8f0;font-weight:500;">'+esc(dv)+'</td>'+
+      td(c1.lan,'#f0f7ff')+td(c1.vp,'#f0f7ff')+
+      td('<span style="color:#16a34a;font-weight:600;">'+c1.da+'</span>','#f0f7ff')+
+      td('<span style="color:#d97706;font-weight:600;">'+c1.dang+'</span>','#f0f7ff')+
+      td(c2.lan,'#f0fdf4')+td(c2.vp,'#f0fdf4')+
+      td('<span style="color:#16a34a;font-weight:600;">'+c2.da+'</span>','#f0fdf4')+
+      td('<span style="color:#d97706;font-weight:600;">'+c2.dang+'</span>','#f0fdf4')+
+    '</tr>';
+  });
+  // Hàng tổng
+  function tdT(v,bg){return '<td style="padding:7px 10px;border:1px solid #c0cbe0;text-align:center;background:'+bg+';font-weight:700;">'+v+'</td>';}
+  rows12+='<tr style="background:#f8fafc;">'+
+    '<td style="padding:7px 10px;border:1px solid #c0cbe0;font-weight:700;">Tổng cộng</td>'+
+    tdT(totals.c1.lan,'#dbeafe')+tdT(totals.c1.vp,'#dbeafe')+
+    tdT('<span style="color:#16a34a;">'+totals.c1.da+'</span>','#dbeafe')+
+    tdT('<span style="color:#d97706;">'+totals.c1.dang+'</span>','#dbeafe')+
+    tdT(totals.c2.lan,'#dcfce7')+tdT(totals.c2.vp,'#dcfce7')+
+    tdT('<span style="color:#16a34a;">'+totals.c2.da+'</span>','#dcfce7')+
+    tdT('<span style="color:#d97706;">'+totals.c2.dang+'</span>','#dcfce7')+
+  '</tr>';
+  tbody12.innerHTML=rows12||'<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--text-light);">Không có dữ liệu trong quý này.</td></tr>';
+
+  // Bảng 2: cap3/4/khác — lọc theo năm
+  var data34=load(LS_KEY34,[]).filter(function(r){
+    var d=r.ngayKT||""; // "YYYY-MM-DD"
+    if(!d) return false;
+    return parseInt(d.split("-")[0])===nam;
+  });
+  // Sắp xếp theo ngày
+  data34.sort(function(a,b){return (a.ngayKT||"").localeCompare(b.ngayKT||"");});
+
+  var tbody34=document.getElementById("bcTable34Body");
+  var rows34="";
+  data34.forEach(function(r,i){
+    var loai=CAP_LABELS[r.type]||r.type;
+    if(r.type==="khac"&&r.tenKhac) loai=r.tenKhac;
+    var vps=r.violations?(typeof r.violations==="string"?JSON.parse(r.violations):r.violations):[];
+    var daKP=vps.filter(function(v){return v.trangThai==="da";}).length;
+    var dangKP=vps.filter(function(v){return v.trangThai==="dang";}).length;
+    var soVP=vps.length;
+    var capBadgeColor=r.type==="cap3"?"#1a56a0":r.type==="cap4"?"#b45309":"#6b21a8";
+    rows34+='<tr style="background:'+(i%2===0?'#fff':'#f8fafc')+';">'+
+      '<td style="padding:7px 10px;border:1px solid #e2e8f0;text-align:center;color:var(--text-light);">'+(i+1)+'</td>'+
+      '<td style="padding:7px 10px;border:1px solid #e2e8f0;"><span style="background:'+capBadgeColor+'1a;color:'+capBadgeColor+';font-weight:600;padding:2px 8px;border-radius:4px;font-size:12px;">'+esc(loai)+'</span></td>'+
+      '<td style="padding:7px 10px;border:1px solid #e2e8f0;text-align:center;white-space:nowrap;">'+fmtDate(r.ngayKT||"")+'</td>'+
+      '<td style="padding:7px 10px;border:1px solid #e2e8f0;text-align:center;font-weight:600;">'+soVP+'</td>'+
+      '<td style="padding:7px 10px;border:1px solid #e2e8f0;text-align:center;"><span style="color:#16a34a;font-weight:600;">'+daKP+'</span></td>'+
+      '<td style="padding:7px 10px;border:1px solid #e2e8f0;text-align:center;"><span style="color:#d97706;font-weight:600;">'+dangKP+'</span></td>'+
+    '</tr>';
+  });
+  tbody34.innerHTML=rows34||'<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-light);">Không có dữ liệu trong quý này.</td></tr>';
+}
+
+/* ═══════════════════════════════════════════════════
    RENDER LIST
 ═══════════════════════════════════════════════════ */
 function renderList(){
@@ -1104,7 +1301,7 @@ function renderList(){
     var cls=r.type==="cap3"?"cap3":r.type==="cap4"?"cap4":r.type==="khac"?"khac":"";
     var lbl=CAP_LABELS[r.type]||r.type;
     if(r.type==="khac"&&r.tenKhac) lbl+="<span style='font-weight:400'>: "+esc(r.tenKhac)+"</span>";
-    var dateStr=is12?"Tháng "+(r.thang||""):"Ngày "+fmtDate(r.ngayKT||"");
+    var dateStr=is12?(function(){var ym=r.thang||"";var parts=ym.split("-");return parts.length>=2?"Tháng "+parts[1]+"-"+parts[0]:("Tháng "+ym);})():"Ngày "+fmtDate(r.ngayKT||"");
     var vps=r.violations?(typeof r.violations==="string"?JSON.parse(r.violations):r.violations):[];
     var vpLbl=vps.length?vps.length+" vi phạm":"Không có vi phạm";
     var meta=is12?(r.donVi?"Đơn vị: "+esc(r.donVi)+" &nbsp;·&nbsp; ":"")+"Số lần KT: "+(r.soLanKiemTra||0)+" &nbsp;·&nbsp; "+vpLbl:(r.noiKT?"Nơi KT: "+esc(r.noiKT)+" &nbsp;·&nbsp; ":"")+vpLbl;
@@ -1115,7 +1312,7 @@ function renderList(){
       '</div>'+
       '<div class="rec-actions">'+
         '<button class="btn btn-edit btn-sm" onclick="viewRecord(\''+r.id+'\',\''+(is12?"12":"34")+'\')">👁️ Xem</button>'+
-        '<button class="btn btn-outline btn-sm" onclick="exportWord(\''+r.id+'\',\''+(is12?"12":"34")+'\')">📄 PDF</button>'+
+        '<button class="btn btn-outline btn-sm" onclick="exportWord(\''+r.id+'\',\''+(is12?"12":"34")+'\')">⬇️</button>'+
         (canModify(u,r)?'<button class="btn btn-outline btn-sm" onclick="editRecord(\''+r.id+'\',\''+(is12?"12":"34")+'\')">✏️ Sửa</button>':'')+
         (canModify(u,r)?'<button class="btn btn-danger btn-sm" onclick="confirmDel(\''+r.id+'\',\''+(is12?"12":"34")+'\')">🗑️</button>':'')+
       '</div>'+
@@ -1205,7 +1402,7 @@ function exportWord(id, sheet){
   var lbl=CAP_LABELS[r.type]||r.type;
   if(r.type==="khac"&&r.tenKhac) lbl+=" — "+r.tenKhac;
   var vtLabel={"truong-doan":"Trưởng đoàn","thanh-vien":"Thành viên","tham-gia":"Tham gia cùng đoàn"};
-  var ttkpLabel={"dang":"Đang thực hiện","da":"Hoàn thành"};
+  var ttkpLabel={"dang":"Đang thực hiện","da":"Hoàn thành","hoan-thanh":"Hoàn thành"};
   var is12=sheet==="12";
 
   // ── DXA constants (A4 landscape: 297mm x 210mm) ──
@@ -1259,7 +1456,7 @@ function exportWord(id, sheet){
   children.push(para([txt("LIÊN DOANH VIỆT - NGA VIETSOVPETRO",{bold:true,size:20})],{alignment:D.AlignmentType.CENTER}));
   children.push(para([txt("Xí nghiệp Dịch vụ Cảng và Cung ứng vật tư thiết bị",{bold:true,size:22})],{alignment:D.AlignmentType.CENTER}));
   children.push(spacer());
-  children.push(para([txt("BIÊN BẢN KIỂM TRA AN TOÀN",{bold:true,size:28,color:BLUE})],{alignment:D.AlignmentType.CENTER,spacing:{before:100,after:60}}));
+  children.push(para([txt("KIỂM TRA AN TOÀN",{bold:true,size:28,color:BLUE})],{alignment:D.AlignmentType.CENTER,spacing:{before:100,after:60}}));
   children.push(para([txt(lbl.toUpperCase(),{bold:true,size:24})],{alignment:D.AlignmentType.CENTER,spacing:{before:0,after:200}}));
 
   if(is12){
@@ -1268,7 +1465,7 @@ function exportWord(id, sheet){
     // Thông tin chung
     var c1=Math.floor(CW/4), c2=Math.floor(CW/4), c3=Math.floor(CW/4), c4=CW-c1-c2-c3;
     children.push(table([row([
-      cell([para([txt("Tháng kiểm tra: ",{bold:true}),txt(r.thang||"")])],c1),
+      cell([para([txt("Tháng kiểm tra: ",{bold:true}),txt((function(){var ym=r.thang||"";var p=ym.split("-");return p.length>=2?p[1]+"-"+p[0]:ym;})())])],c1),
       cell([para([txt("Đơn vị: ",{bold:true}),txt(r.donVi||"")])],c2),
       cell([para([txt("Số lần KT: ",{bold:true}),txt(String(r.soLanKiemTra||0))])],c3),
       cell([para([txt("Số vi phạm: ",{bold:true}),txt(String(r.soViPham||0))])],c4)
@@ -1276,18 +1473,17 @@ function exportWord(id, sheet){
 
     if(vps.length){
       children.push(secTitle("CHI TIẾT VI PHẠM / GHI NHẬN"));
-      var w=[500,3500,1500,2500,1200,1500,CW-500-3500-1500-2500-1200-1500];
+      var w=[500,3800,1600,2800,1800,CW-500-3800-1600-2800-1800];
       children.push(table(
-        [row([hdrCell("STT",w[0]),hdrCell("Nội dung vi phạm",w[1]),hdrCell("Vị trí",w[2]),hdrCell("Biện pháp KP",w[3]),hdrCell("Thời hạn KP",w[4]),hdrCell("Tình trạng KP",w[5]),hdrCell("Phân loại vi phạm",w[6])])]
+        [row([hdrCell("STT",w[0]),hdrCell("Nội dung vi phạm",w[1]),hdrCell("Vị trí",w[2]),hdrCell("Biện pháp KP",w[3]),hdrCell("Tình trạng khắc phục",w[4]),hdrCell("Phân loại vi phạm",w[5])])]
         .concat(vps.map(function(v,i){
           return row([
             cell([para([txt(String(i+1))],{alignment:D.AlignmentType.CENTER})],w[0]),
             cell([para([txt(v.nd||"")])],w[1]),
             cell([para([txt(v.viTri||"")])],w[2]),
             cell([para([txt(v.bienPhapKP||"")])],w[3]),
-            cell([para([txt(v.thoiHan==="Thường xuyên"?"Thường xuyên":fmtDate(v.thoiHan||""))],{alignment:D.AlignmentType.CENTER})],w[4]),
-            cell([para([txt(ttkpLabel[v.tinhTrangKP]||"")],{alignment:D.AlignmentType.CENTER})],w[5]),
-            cell([para([txt(Array.isArray(v.loaiVP)?v.loaiVP.join(", "):(v.loaiVP||""))])],w[6])
+            cell([para([txt(ttkpLabel[v.tinhTrangKP]||"")],{alignment:D.AlignmentType.CENTER})],w[4]),
+            cell([para([txt(Array.isArray(v.loaiVP)?v.loaiVP.join(", "):(v.loaiVP||""))])],w[5])
           ]);
         })),
         w
@@ -1343,22 +1539,6 @@ function exportWord(id, sheet){
       ));
     }
   }
-
-  // ── CHỮ KÝ ──
-  children.push(spacer());children.push(spacer());
-  var sk1=Math.floor(CW/2), sk2=CW-sk1;
-  children.push(table([row([
-    cell([
-      para([txt("Đại diện đơn vị được kiểm tra",{bold:true})],{alignment:D.AlignmentType.CENTER}),
-      para([txt("(Ký và ghi rõ họ tên)",{italics:true,color:"666666"})],{alignment:D.AlignmentType.CENTER}),
-      para([txt("")],{spacing:{before:600}})
-    ],sk1,{borders:{top:bdr,bottom:{style:D.BorderStyle.NONE},left:{style:D.BorderStyle.NONE},right:{style:D.BorderStyle.NONE}}}),
-    cell([
-      para([txt("Trưởng đoàn kiểm tra",{bold:true})],{alignment:D.AlignmentType.CENTER}),
-      para([txt("(Ký và ghi rõ họ tên)",{italics:true,color:"666666"})],{alignment:D.AlignmentType.CENTER}),
-      para([txt("")],{spacing:{before:600}})
-    ],sk2,{borders:{top:bdr,bottom:{style:D.BorderStyle.NONE},left:{style:D.BorderStyle.NONE},right:{style:D.BorderStyle.NONE}}})
-  ])],[sk1,sk2]));
 
   // ── FOOTER ──
   children.push(spacer());
@@ -1492,8 +1672,10 @@ function init(){
   buildThangNamSelects();
   resetForm();
 
+  initBaoCaoFilters();
   loadData();
-  switchTab("danhsach");
+  switchTab("baocao");
+  renderBaoCao();
 }
 
 document.addEventListener("DOMContentLoaded",init);
