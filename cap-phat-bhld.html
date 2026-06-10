@@ -2144,7 +2144,7 @@ function renderChoduyetTab(){
   if(badge){badge.textContent=pending.length;badge.style.display=pending.length?'inline':'none';}
 }
 
-function _parsePhieuItems(itemsJson){try{return JSON.parse(itemsJson||'[]');}catch(e){return[];}}
+function _parsePhieuItems(itemsJson){if(Array.isArray(itemsJson))return itemsJson;try{return JSON.parse(itemsJson||'[]');}catch(e){return[];}}
 
 function approvePhieu(id){
   if(!isAdmin()){showToast('Chỉ Admin mới có quyền phê duyệt.','error');return;}
