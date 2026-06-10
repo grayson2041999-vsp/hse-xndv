@@ -201,6 +201,7 @@
       .form-row.cols3{grid-template-columns:1fr;}
     }
   </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
 <body>
 <div class="layout">
@@ -302,6 +303,15 @@
                 <tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-light);">Đang tải...</td></tr>
               </tbody>
             </table>
+          </div>
+        </div>
+
+        <!-- Biểu đồ phân loại vi phạm -->
+        <div style="margin-top:28px;">
+          <div class="sec-div" style="margin-bottom:14px;font-weight:700;color:var(--primary);">📊 Phân loại vi phạm — lũy kế năm</div>
+          <div style="background:#fff;border-radius:10px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+            <div id="bcChartEmpty" style="display:none;text-align:center;padding:30px;color:var(--text-light);">Không có dữ liệu vi phạm trong năm này.</div>
+            <canvas id="bcLoaiVPChart" style="max-height:400px;"></canvas>
           </div>
         </div>
 
@@ -1266,6 +1276,102 @@ function renderBaoCao(){
     '</tr>';
   });
   tbody34.innerHTML=rows34||'<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-light);">Không có dữ liệu trong quý này.</td></tr>';
+
+  // ── BIỂU ĐỒ PHÂN LOẠI VI PHẠM (lũy kế năm, gộp tất cả cấp) ──
+  var allYear12=load(LS_KEY12,[]).filter(function(r){
+    var ym=r.thang||""; return parseInt(ym.split("-")[0])===nam;
+  });
+  var allYear34=load(LS_KEY34,[]).filter(function(r){
+    return parseInt((r.ngayKT||"").split("-")[0])===nam;
+  });
+  var loaiCount={};
+  function countLoai(records){
+    records.forEach(function(r){
+      var vps=r.violations?(typeof r.violations==="string"?JSON.parse(r.violations):r.violations):[];
+      vps.forEach(function(v){
+        var arr=Array.isArray(v.loaiVP)?v.loaiVP:(v.loaiVP?[v.loaiVP]:[]);
+        arr.forEach(function(l){
+          if(!l) return;
+          loaiCount[l]=(loaiCount[l]||0)+1;
+        });
+      });
+    });
+  }
+  countLoai(allYear12); countLoai(allYear34);
+
+  var labels=Object.keys(loaiCount).sort(function(a,b){return loaiCount[b]-loaiCount[a];});
+  var values=labels.map(function(l){return loaiCount[l];});
+  var total=values.reduce(function(s,v){return s+v;},0);
+
+  var canvas=document.getElementById("bcLoaiVPChart");
+  var emptyDiv=document.getElementById("bcChartEmpty");
+
+  if(!labels.length){
+    canvas.style.display="none"; emptyDiv.style.display="block"; return;
+  }
+  canvas.style.display="block"; emptyDiv.style.display="none";
+
+  var COLORS=["#003087","#1a56a0","#2e7d32","#b45309","#6b21a8","#0e7490","#9f1239","#065f46","#92400e","#1e3a5f"];
+  var bgColors=labels.map(function(_,i){return COLORS[i%COLORS.length];});
+
+  if(window._bcChart) window._bcChart.destroy();
+  window._bcChart=new Chart(canvas,{
+    type:"bar",
+    data:{
+      labels:labels,
+      datasets:[{
+        label:"Số vi phạm",
+        data:values,
+        backgroundColor:bgColors,
+        borderRadius:4,
+        borderSkipped:false
+      }]
+    },
+    options:{
+      indexAxis:"y",
+      responsive:true,
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          callbacks:{
+            label:function(ctx){
+              var v=ctx.parsed.x;
+              var pct=total?Math.round(v/total*100):0;
+              return " "+v+" vi phạm ("+pct+"%)";
+            }
+          }
+        },
+        datalabels:{display:false}
+      },
+      scales:{
+        x:{
+          beginAtZero:true,
+          ticks:{stepSize:1,precision:0},
+          grid:{color:"#f0f0f0"}
+        },
+        y:{
+          ticks:{font:{size:12},color:"#1e293b"}
+        }
+      }
+    },
+    plugins:[{
+      id:"customLabels",
+      afterDatasetDraw:function(chart){
+        var ctx2=chart.ctx;
+        chart.getDatasetMeta(0).data.forEach(function(bar,i){
+          var v=values[i];
+          var pct=total?Math.round(v/total*100):0;
+          ctx2.save();
+          ctx2.fillStyle="#1e293b";
+          ctx2.font="bold 12px sans-serif";
+          ctx2.textAlign="left";
+          ctx2.textBaseline="middle";
+          ctx2.fillText(v+" ("+pct+"%)", bar.x+6, bar.y);
+          ctx2.restore();
+        });
+      }
+    }]
+  });
 }
 
 /* ═══════════════════════════════════════════════════
