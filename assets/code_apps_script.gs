@@ -99,6 +99,12 @@ var SCHEMA = {
     desc: "Khám sức khoẻ – Tiến độ khám SK định kỳ & bệnh nghề nghiệp (loai: dinh_ky/benh_nghe_1/benh_nghe_2)"
   },
 
+  // ── QUẢN LÝ NHÀ THẦU ──
+  nha_thau: {
+    cols: ["id","ten_nha_thau","khu_vuc","hang_muc","lh_ho_ten","lh_chuc_danh","lh_sdt","hd_bat_dau","hd_ket_thuc","ghi_chu","created_at"],
+    desc: "Quản lý nhà thầu – Thông tin các nhà thầu thuê kho, bãi, văn phòng"
+  },
+
   // ── QUẢN LÝ THIẾT BỊ – BÌNH ÁP LỰC ──
   binh_ap_luc: {
     cols: ["id","section","order","ten_thiet_bi","vi_tri","v_m3","plv_kgcm2","nam_van_hanh","so_dang_ky","ngay_kd_gan_nhat","ngay_kd_tiep_theo","moi_chat_an_mon","moi_chat_chay_no","ghi_chu","createdBy","created_at","updated_at"],
@@ -168,7 +174,13 @@ function _sheetToObjects(sh) {
     var obj = {};
     headers.forEach(function(h, i) {
       var v = row[i];
-      if (typeof v === "string" && (v.charAt(0) === "[" || v.charAt(0) === "{")) {
+      // Convert Date objects → DD/MM/YYYY string (tránh serialize thành ISO string)
+      if (v instanceof Date) {
+        var dd = String(v.getDate()).padStart(2, "0");
+        var mm = String(v.getMonth() + 1).padStart(2, "0");
+        var yy = v.getFullYear();
+        v = dd + "/" + mm + "/" + yy;
+      } else if (typeof v === "string" && (v.charAt(0) === "[" || v.charAt(0) === "{")) {
         try { v = JSON.parse(v); } catch(e) {}
       }
       if (v === "TRUE" || v === true) v = true;

@@ -472,6 +472,16 @@
       return;
     }
 
+    // Trang quản lý nhà thầu: custom renderer (module riêng)
+    if(slug === "quan-ly-nha-thau"){
+      if(!canView(u, slug)){ renderShell(slug, deniedNode()); return; }
+      var ntContainer = renderShell(slug, el("div"));
+      if(typeof window.renderQuanLyNhaThau === "function"){
+        window.renderQuanLyNhaThau(ntContainer, u, canEdit(u, slug) || isAdmin(u));
+      }
+      return;
+    }
+
     // Trang thường: anonymous có thể xem, user/viewer theo phân quyền
     if(!canView(u, slug)){
       renderShell(slug, deniedNode()); return;
