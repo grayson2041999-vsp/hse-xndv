@@ -76,11 +76,34 @@
     return              { cls: "kd-con-han",  label: "Còn hạn" };
   }
 
+  /* ── NORMALIZE: ISO date string → DD/MM/YYYY ── */
+  function _normalizeDateField(val) {
+    if (!val) return val;
+    if (typeof val === "string" && val.indexOf("T") > 0 && val.indexOf("Z") > 0) {
+      // ISO 8601 string: "2025-10-22T17:00:00.000Z"
+      var d = new Date(val);
+      if (!isNaN(d.getTime())) {
+        return String(d.getDate()).padStart(2,"0") + "/" +
+               String(d.getMonth()+1).padStart(2,"0") + "/" +
+               d.getFullYear();
+      }
+    }
+    return val;
+  }
+
+  function _normalizeRow(row) {
+    row.ngay_kd_gan_nhat  = _normalizeDateField(row.ngay_kd_gan_nhat);
+    row.ngay_kd_tiep_theo = _normalizeDateField(row.ngay_kd_tiep_theo);
+    return row;
+  }
+
   /* ── SYNC SHEETS ── */
   function _pullFromSheets(cb) {
     if (typeof DB === "undefined" || !DB.isReady()) { if (cb) cb(); return; }
     DB.getAll(SHEET).then(function (rows) {
-      if (rows && rows.length) _save(rows);
+      if (rows && rows.length) {
+        _save(rows.map(_normalizeRow));
+      }
       if (cb) cb();
     }).catch(function () { if (cb) cb(); });
   }
