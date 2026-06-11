@@ -1193,15 +1193,34 @@ function resetForm(){
 ═══════════════════════════════════════════════════ */
 function normalizeDateStr(d){
   if(!d) return d;
-  // Chuyển DD/MM/YYYY → YYYY-MM-DD (Google Sheets trả về định dạng locale)
-  var m=String(d).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  var s=String(d);
+  // DD/MM/YYYY → YYYY-MM-DD
+  var m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if(m) return m[3]+"-"+m[2].padStart(2,"0")+"-"+m[1].padStart(2,"0");
-  return d;
+  return s;
+}
+function normalizeThang(t){
+  if(!t) return t;
+  var s=String(t);
+  // Đã đúng YYYY-MM
+  if(/^\d{4}-\d{2}$/.test(s)) return s;
+  // DD/MM/YYYY hoặc D/M/YYYY → YYYY-MM
+  var m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(m) return m[3]+"-"+m[2].padStart(2,"0");
+  // YYYY-MM-DD → YYYY-MM
+  var m2=s.match(/^(\d{4})-(\d{2})-\d{2}$/);
+  if(m2) return m2[1]+"-"+m2[2];
+  return s;
 }
 function loadData(){
   if(typeof DB==="undefined"){renderList();renderBaoCao();return;}
   Promise.all([
-    DB.getAll(SHEET12).then(function(r){save(LS_KEY12,r||[]);}).catch(function(){}),
+    DB.getAll(SHEET12).then(function(r){
+      var rows=(r||[]).map(function(rec){
+        return Object.assign({},rec,{thang:normalizeThang(rec.thang)});
+      });
+      save(LS_KEY12,rows);
+    }).catch(function(){}),
     DB.getAll(SHEET34).then(function(r){
       var rows=(r||[]).map(function(rec){
         return Object.assign({},rec,{ngayKT:normalizeDateStr(rec.ngayKT)});
