@@ -97,6 +97,12 @@ var SCHEMA = {
   ksk: {
     cols: ["id","nam","loai","tong","da_kham","updatedBy","updatedAt","created_at"],
     desc: "Khám sức khoẻ – Tiến độ khám SK định kỳ & bệnh nghề nghiệp (loai: dinh_ky/benh_nghe_1/benh_nghe_2)"
+  },
+
+  // ── QUẢN LÝ THIẾT BỊ – BÌNH ÁP LỰC ──
+  binh_ap_luc: {
+    cols: ["id","section","order","ten_thiet_bi","vi_tri","v_m3","plv_kgcm2","nam_van_hanh","so_dang_ky","ngay_kd_gan_nhat","ngay_kd_tiep_theo","moi_chat_an_mon","moi_chat_chay_no","ghi_chu","createdBy","created_at","updated_at"],
+    desc: "Quản lý thiết bị – Bình áp lực (section: cang_bien / xuong_sua_chua)"
   }
 };
 
