@@ -1192,11 +1192,11 @@ function resetForm(){
    DATA
 ═══════════════════════════════════════════════════ */
 function loadData(){
-  if(typeof DB==="undefined"){renderList();return;}
+  if(typeof DB==="undefined"){renderList();renderBaoCao();return;}
   Promise.all([
     DB.getAll(SHEET12).then(function(r){save(LS_KEY12,r||[]);}).catch(function(){}),
     DB.getAll(SHEET34).then(function(r){save(LS_KEY34,r||[]);}).catch(function(){})
-  ]).then(function(){renderList();});
+  ]).then(function(){renderList();renderBaoCao();});
 }
 
 /* ═══════════════════════════════════════════════════
@@ -1816,9 +1816,8 @@ function init(){
   resetForm();
 
   initBaoCaoFilters();
-  loadData();
   switchTab("baocao");
-  renderBaoCao();
+  loadData(); // fetch Sheets → tự gọi renderList() + renderBaoCao() khi xong
 }
 
 document.addEventListener("DOMContentLoaded",init);
