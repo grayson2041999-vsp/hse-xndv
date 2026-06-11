@@ -116,15 +116,24 @@ var DB = (function() {
     return _fetch(_url + "?" + qs);
   }
 
-  /* ─── Gọi API write (dùng GET — Apps Script redirect 302 làm mất POST body) ─── */
+  /* ─── Gọi API write (POST với Content-Type text/plain) ───
+     Dùng POST thật thay vì nhồi dữ liệu vào URL, để bỏ giới hạn độ dài
+     URL khi ghi nhiều bản ghi (vd: Sync toàn bộ users → "Failed to fetch").
+     "text/plain" là simple request nên KHÔNG kích hoạt CORS preflight;
+     server doPost đọc dữ liệu từ e.postData.contents.
+     Chỉ tham số ngắn (action/sheet/id) nằm trên URL. */
   function _post(params, body) {
     if (!_url) return Promise.reject(new Error("Chưa cấu hình DB URL."));
     var bodyWithUser = Object.assign({}, body, { user: _currentUser });
-    var allParams = Object.assign({}, params, { payload: JSON.stringify(bodyWithUser) });
-    var qs = Object.keys(allParams).map(function(k) {
-      return encodeURIComponent(k) + "=" + encodeURIComponent(allParams[k]);
+    var qs = Object.keys(params).map(function(k) {
+      return encodeURIComponent(k) + "=" + encodeURIComponent(params[k]);
     }).join("&");
-    return _fetch(_url + "?" + qs);
+    return _fetch(_url + (qs ? "?" + qs : ""), {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(bodyWithUser),
+      redirect: "follow"
+    });
   }
 
   /* ─── ID generator (client-side) ─── */
