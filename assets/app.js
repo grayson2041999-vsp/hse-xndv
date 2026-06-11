@@ -462,6 +462,16 @@
       return;
     }
 
+    // Trang quản lý thiết bị: custom renderer (module riêng)
+    if(slug === "quan-ly-thiet-bi"){
+      if(!canView(u, slug)){ renderShell(slug, deniedNode()); return; }
+      var tbContainer = renderShell(slug, el("div"));
+      if(typeof window.renderQuanLyThietBi === "function"){
+        window.renderQuanLyThietBi(tbContainer, u, canEdit(u, slug), isAdmin(u));
+      }
+      return;
+    }
+
     // Trang thường: anonymous có thể xem, user/viewer theo phân quyền
     if(!canView(u, slug)){
       renderShell(slug, deniedNode()); return;
