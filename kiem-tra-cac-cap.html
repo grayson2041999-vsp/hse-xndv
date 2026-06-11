@@ -1191,11 +1191,23 @@ function resetForm(){
 /* ═══════════════════════════════════════════════════
    DATA
 ═══════════════════════════════════════════════════ */
+function normalizeDateStr(d){
+  if(!d) return d;
+  // Chuyển DD/MM/YYYY → YYYY-MM-DD (Google Sheets trả về định dạng locale)
+  var m=String(d).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(m) return m[3]+"-"+m[2].padStart(2,"0")+"-"+m[1].padStart(2,"0");
+  return d;
+}
 function loadData(){
   if(typeof DB==="undefined"){renderList();renderBaoCao();return;}
   Promise.all([
     DB.getAll(SHEET12).then(function(r){save(LS_KEY12,r||[]);}).catch(function(){}),
-    DB.getAll(SHEET34).then(function(r){save(LS_KEY34,r||[]);}).catch(function(){})
+    DB.getAll(SHEET34).then(function(r){
+      var rows=(r||[]).map(function(rec){
+        return Object.assign({},rec,{ngayKT:normalizeDateStr(rec.ngayKT)});
+      });
+      save(LS_KEY34,rows);
+    }).catch(function(){})
   ]).then(function(){renderList();renderBaoCao();});
 }
 
