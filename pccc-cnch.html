@@ -198,6 +198,10 @@
       .form-row{grid-template-columns:1fr;}
     }
   </style>
+  <link rel="stylesheet" href="assets/flatpickr.min.css">
+  <script src="assets/flatpickr.min.js"></script>
+  <script src="assets/flatpickr-vn.js"></script>
+  <script src="assets/hse-date.js"></script>
 </head>
 <body>
 <div class="layout">
@@ -986,7 +990,7 @@ function openErrorModal(editId){
     document.getElementById("eDevLocation").value=existing.devLocation||"";
     document.getElementById("eErrType").value=existing.errType;
     document.getElementById("eErrCustom").value=existing.errCustom||"";
-    document.getElementById("eDetectDate").value=existing.detectDate||"";
+    if(window.HSEDate)HSEDate.setValue(document.getElementById("eDetectDate"),existing.detectDate||"");else document.getElementById("eDetectDate").value=existing.detectDate||"";
     document.getElementById("eMeasure").value=existing.measure||"";
     toggleCustomErr();
     updateDateRange();
@@ -998,7 +1002,7 @@ function openErrorModal(editId){
     document.getElementById("eDevLocation").value="";
     document.getElementById("eErrType").value="Lỗi thiết bị";
     document.getElementById("eErrCustom").value="";
-    document.getElementById("eDetectDate").value="";
+    if(window.HSEDate)HSEDate.setValue(document.getElementById("eDetectDate"),"");else document.getElementById("eDetectDate").value="";
     document.getElementById("eMeasure").value="";
     toggleCustomErr();
     updateDateRange();

@@ -176,6 +176,10 @@
       .pages-grid{grid-template-columns:repeat(2,1fr);}
     }
   </style>
+  <link rel="stylesheet" href="assets/flatpickr.min.css">
+  <script src="assets/flatpickr.min.js"></script>
+  <script src="assets/flatpickr-vn.js"></script>
+  <script src="assets/hse-date.js"></script>
 </head>
 <body>
 
@@ -748,7 +752,7 @@ function changeStatus(id, newStatus){
   if(newStatus==="Đã hoàn thành"){
     // Yêu cầu nhập báo cáo và ngày hoàn thành
     _completionTargetId=id;
-    document.getElementById("cmpDate").value=new Date().toISOString().split("T")[0];
+    if(window.HSEDate)HSEDate.setToday(document.getElementById("cmpDate"));else document.getElementById("cmpDate").value=new Date().toISOString().split("T")[0];
     document.getElementById("cmpReport").value="";
     document.getElementById("completionModalBg").classList.add("open");
     return;

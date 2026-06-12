@@ -202,6 +202,10 @@
     }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="assets/flatpickr.min.css">
+  <script src="assets/flatpickr.min.js"></script>
+  <script src="assets/flatpickr-vn.js"></script>
+  <script src="assets/hse-date.js"></script>
 </head>
 <body>
 <div class="layout">
@@ -1185,7 +1189,7 @@ function resetForm(){
   document.getElementById("doanBody").innerHTML=""; document.getElementById("c34VPBody").innerHTML="";
   addDoanRow(); addVPRow34();
   buildThangNamSelects();
-  document.getElementById("c34Ngay").value=new Date().toISOString().slice(0,10);
+  if(window.HSEDate)HSEDate.setToday(document.getElementById("c34Ngay"));else document.getElementById("c34Ngay").value=new Date().toISOString().slice(0,10);
 }
 
 /* ═══════════════════════════════════════════════════
