@@ -45,6 +45,27 @@
     return p.length === 3 ? p[2]+"-"+p[1]+"-"+p[0] : v;
   }
 
+  /* Chuẩn hóa ngày từ Sheets: ISO string → DD-MM-YYYY */
+  function _normalizeDate(v) {
+    if (!v) return v;
+    /* ISO 8601: "2025-06-03T17:00:00.000Z" */
+    if (typeof v === "string" && v.indexOf("T") > 0) {
+      var d = new Date(v);
+      if (!isNaN(d.getTime())) {
+        return String(d.getDate()).padStart(2,"0") + "-" +
+               String(d.getMonth()+1).padStart(2,"0") + "-" +
+               d.getFullYear();
+      }
+    }
+    return v;
+  }
+
+  function _normalizeRow(r) {
+    r.hd_bat_dau  = _normalizeDate(r.hd_bat_dau);
+    r.hd_ket_thuc = _normalizeDate(r.hd_ket_thuc);
+    return r;
+  }
+
   /* ── LOCAL STORAGE ── */
   function _load() {
     try { return JSON.parse(localStorage.getItem(LS_KEY) || "[]"); } catch(e) { return []; }
@@ -57,7 +78,7 @@
   function _pull(cb) {
     if (typeof DB === "undefined" || !DB.isReady()) { if (cb) cb(); return; }
     DB.getAll(SHEET).then(function(rows) {
-      if (rows && rows.length) _save(rows);
+      if (rows && rows.length) _save(rows.map(_normalizeRow));
       if (cb) cb();
     }).catch(function() { if (cb) cb(); });
   }
@@ -69,11 +90,12 @@
     if (typeof DB === "undefined" || !DB.isReady()) return;
     DB.getAll(SHEET).then(function(rows) {
       if (!rows || !rows.length) return;
-      var current = JSON.stringify(_load());
-      var incoming = JSON.stringify(rows);
+      var normalized = rows.map(_normalizeRow);
+      var current  = JSON.stringify(_load());
+      var incoming = JSON.stringify(normalized);
       if (current !== incoming) {
-        _save(rows);
-        _renderTable(); /* cập nhật bảng nếu có thay đổi */
+        _save(normalized);
+        _renderTable();
       }
     }).catch(function() {});
   }
