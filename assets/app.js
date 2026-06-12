@@ -16,16 +16,11 @@
     { slug:"pccc-cnch",          title:"PCCC & CNCH",                 icon:"🧯", sub:["Hệ thống báo cháy tự động (BCTĐ)","Phương tiện CC & CNCH"] },
     { slug:"cap-phat-bhld",      title:"Cấp phát BHLĐ",               icon:"🦺", sub:["Quản lý cấp phát","Danh mục BHLĐ","Định mức cấp phát","Phiếu yêu cầu","Tồn kho","Nhu cầu mua sắm"] },
     { slug:"huan-luyen-dao-tao", title:"Huấn luyện - Đào tạo",        icon:"🎓", sub:["Thống kê các loại đào tạo, huấn luyện","Kiểm tra kiến thức an toàn","Đào tạo nội bộ"] },
-    { slug:"ung-pho-khan-cap",   title:"Ứng phó tình huống khẩn cấp", icon:"🚨", sub:["Kế hoạch","Báo cáo"] },
-    { slug:"jsa",                title:"JSA",                         icon:"📝", sub:["Hướng dẫn lập JSA online"] },
     { slug:"sop",                title:"SOP",                         icon:"📑", sub:[], adminEditOnly:true },
     { slug:"kiem-tra-cac-cap",   title:"Kiểm tra các cấp",            icon:"🔍", sub:["Số lượng kiểm tra các cấp","Ghi nhận các lỗi vào hệ thống","Ghi nhận hành động khắc phục, thời hạn"] },
     { slug:"quan-ly-thiet-bi",   title:"Quản lý thiết bị",            icon:"⚙️", sub:["Thiết bị nâng","Bình áp lực"] },
     { slug:"kham-suc-khoe",      title:"Khám sức khoẻ nghề nghiệp",   icon:"🩺", sub:["Theo dõi khám sức khoẻ nghề nghiệp","Theo dõi khám bệnh nghề nghiệp"] },
-    { slug:"an-toan-dien",       title:"An toàn điện",                icon:"⚡", sub:[] },
-    { slug:"an-toan-giao-thong", title:"An toàn giao thông",          icon:"🚧", sub:[] },
     { slug:"moi-truong",         title:"Môi trường",                  icon:"🌿", sub:["Thống kê khối lượng rác thải xử lý"] },
-    { slug:"quan-ly-hoa-chat",   title:"Quản lý hóa chất",            icon:"🧪", sub:["Thông tin về các khu vực hoá chất","Lập báo cáo hoá chất"] },
     { slug:"quan-ly-nha-thau",   title:"Quản lý nhà thầu",            icon:"👷", sub:["Thông tin các nhà thầu đang làm việc","Thuê kho, bãi, văn phòng làm việc"] },
     { slug:"ke-hoach",           title:"Kế hoạch",                    icon:"🗓️", sub:["Lập kế hoạch (chọn các mục liên quan)","Báo cáo kế hoạch cụ thể"] },
     { slug:"bao-cao",            title:"Báo cáo",                     icon:"📈", sub:[] },
@@ -847,9 +842,9 @@
         approveChk.checked=false;
         // Fix 5: gợi ý phân quyền mặc định khi duyệt (chọn sẵn các trang cơ bản)
         var defaultPerms=["tong-quan","pccc-cnch","cap-phat-bhld","huan-luyen-dao-tao",
-          "ung-pho-khan-cap","jsa","kiem-tra-cac-cap","quan-ly-thiet-bi",
-          "kham-suc-khoe","an-toan-dien","an-toan-giao-thong","moi-truong",
-          "quan-ly-hoa-chat","quan-ly-nha-thau","ke-hoach","bao-cao"];
+          "kiem-tra-cac-cap","quan-ly-thiet-bi",
+          "kham-suc-khoe","moi-truong",
+          "quan-ly-nha-thau","ke-hoach","bao-cao"];
         if(!(user.perms && user.perms.length)) setPerms(defaultPerms);
       } else { approveWrap.style.display="none"; }
       bg.classList.add("open");

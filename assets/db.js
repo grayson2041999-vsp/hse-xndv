@@ -14,13 +14,13 @@
  *    var u = await DB.getById("users", "id123");
  *
  *    // Thêm mới
- *    await DB.insert("jsa", { ten_cong_viec: "...", don_vi: "Cảng biển" });
+ *    await DB.insert("nha_thau", { ten_nha_thau: "...", khu_vuc: "Cảng biển" });
  *
  *    // Cập nhật
- *    await DB.update("jsa", "id123", { trang_thai: "Đã duyệt" });
+ *    await DB.update("nha_thau", "id123", { trang_thai: "Đã duyệt" });
  *
  *    // Xóa
- *    await DB.delete("jsa", "id123");
+ *    await DB.delete("nha_thau", "id123");
  *
  *    // Ghi đè toàn bộ sheet (sync from localStorage)
  *    await DB.bulkWrite("users", arrayOfObjects);
