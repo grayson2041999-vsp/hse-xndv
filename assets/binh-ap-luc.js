@@ -37,10 +37,9 @@
   /* ── TÍNH NGÀY KIỂM ĐỊNH TIẾP THEO ── */
   function _calcNextDate(ngayGanNhat, namVanHanh, anMon, chayNo) {
     if (!ngayGanNhat || !namVanHanh) return "";
-    var parts = ngayGanNhat.split("/");
-    if (parts.length !== 3) return "";
-    var d = parseInt(parts[0]), m = parseInt(parts[1]) - 1, y = parseInt(parts[2]);
-    if (isNaN(d) || isNaN(m) || isNaN(y)) return "";
+    var base = HSEDate.parse(ngayGanNhat);   /* nhận mọi định dạng */
+    if (!base) return "";
+    var d = base.getDate(), m = base.getMonth(), y = base.getFullYear();
 
     var nam = parseInt(namVanHanh);
     if (isNaN(nam)) return "";
@@ -57,18 +56,16 @@
     }
 
     var next = new Date(y + them, m, d);
-    var dd = String(next.getDate()).padStart(2, "0");
-    var mm = String(next.getMonth() + 1).padStart(2, "0");
-    var yy = next.getFullYear();
-    return dd + "/" + mm + "/" + yy;
+    return next.getFullYear() + "-" +
+           String(next.getMonth() + 1).padStart(2, "0") + "-" +
+           String(next.getDate()).padStart(2, "0");   /* trả về ISO YYYY-MM-DD */
   }
 
   /* ── TRẠNG THÁI KIỂM ĐỊNH ── */
   function _kdStatus(ngayTiepTheo) {
     if (!ngayTiepTheo) return null;
-    var parts = ngayTiepTheo.split("/");
-    if (parts.length !== 3) return null;
-    var next = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+    var next = HSEDate.parse(ngayTiepTheo);   /* nhận mọi định dạng */
+    if (!next) return null;
     var now  = new Date();
     var diff = (next - now) / (1000 * 60 * 60 * 24); // số ngày còn lại
     if (diff < 0)   return { cls: "kd-qua-han",  label: "Quá hạn" };
@@ -76,24 +73,10 @@
     return              { cls: "kd-con-han",  label: "Còn hạn" };
   }
 
-  /* ── NORMALIZE: ISO date string → DD/MM/YYYY ── */
-  function _normalizeDateField(val) {
-    if (!val) return val;
-    if (typeof val === "string" && val.indexOf("T") > 0 && val.indexOf("Z") > 0) {
-      // ISO 8601 string: "2025-10-22T17:00:00.000Z"
-      var d = new Date(val);
-      if (!isNaN(d.getTime())) {
-        return String(d.getDate()).padStart(2,"0") + "/" +
-               String(d.getMonth()+1).padStart(2,"0") + "/" +
-               d.getFullYear();
-      }
-    }
-    return val;
-  }
-
+  /* ── NORMALIZE: mọi định dạng → ISO YYYY-MM-DD (định dạng lưu trữ chuẩn) ── */
   function _normalizeRow(row) {
-    row.ngay_kd_gan_nhat  = _normalizeDateField(row.ngay_kd_gan_nhat);
-    row.ngay_kd_tiep_theo = _normalizeDateField(row.ngay_kd_tiep_theo);
+    row.ngay_kd_gan_nhat  = HSEDate.toISO(row.ngay_kd_gan_nhat);
+    row.ngay_kd_tiep_theo = HSEDate.toISO(row.ngay_kd_tiep_theo);
     return row;
   }
 
@@ -124,22 +107,6 @@
   /* ── ID ── */
   function _genId() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-  }
-
-  /* ── FORMAT DATE INPUT → DD/MM/YYYY ── */
-  function _inputToDisplay(val) {
-    // val là YYYY-MM-DD từ <input type="date">
-    if (!val) return "";
-    var p = val.split("-");
-    if (p.length !== 3) return val;
-    return p[2] + "/" + p[1] + "/" + p[0];
-  }
-  function _displayToInput(val) {
-    // val là DD/MM/YYYY → YYYY-MM-DD
-    if (!val) return "";
-    var p = val.split("/");
-    if (p.length !== 3) return "";
-    return p[2] + "-" + p[1] + "-" + p[0];
   }
 
   /* ══════════════════════════════════════════
@@ -336,13 +303,13 @@
 
     tr.appendChild(td(rec.nam_van_hanh || "—", "col-nam"));
     tr.appendChild(td(_esc(rec.so_dang_ky || "—"), "col-sodangky"));
-    tr.appendChild(td(rec.ngay_kd_gan_nhat || "—", "col-kd"));
+    tr.appendChild(td(rec.ngay_kd_gan_nhat ? HSEDate.fmt(rec.ngay_kd_gan_nhat) : "—", "col-kd"));
 
     /* Ngày KĐ tiếp theo + badge trạng thái */
     var nextCell = document.createElement("td");
     nextCell.className = "col-kd";
     if (nextDate) {
-      nextCell.innerHTML = nextDate;
+      nextCell.innerHTML = HSEDate.fmt(nextDate);
       if (status) {
         var badge = document.createElement("span");
         badge.className = "kd-badge " + status.cls;
@@ -465,14 +432,13 @@
 
     /* Tính ngày tiếp theo để hiển thị preview */
     function previewNext() {
-      var ngay  = document.getElementById("bal-inp-ngaykd").value;
+      var ngay  = HSEDate.getValue(document.getElementById("bal-inp-ngaykd"));
       var nam   = document.getElementById("bal-inp-nam").value;
       var anMon = document.getElementById("bal-inp-anmon").checked;
       var chayNo= document.getElementById("bal-inp-chayno").checked;
-      var display = _inputToDisplay(ngay);
-      var next  = _calcNextDate(display, nam, anMon, chayNo);
+      var next  = _calcNextDate(ngay, nam, anMon, chayNo);
       var el = document.getElementById("bal-preview-next");
-      if (el) el.textContent = next || "—";
+      if (el) el.textContent = next ? HSEDate.fmt(next) : "—";
     }
 
     var overlay = document.createElement("div");
@@ -517,11 +483,11 @@
         '</div>' +
         '<div class="bal-form-row">' +
           '<label>Ngày kiểm định gần nhất</label>' +
-          '<input id="bal-inp-ngaykd" class="bal-input" type="date" value="' + _displayToInput(rec.ngay_kd_gan_nhat || "") + '">' +
+          '<input id="bal-inp-ngaykd" class="bal-input" type="date" value="' + HSEDate.toISO(rec.ngay_kd_gan_nhat || "") + '">' +
         '</div>' +
         '<div class="bal-form-row">' +
           '<label>Ngày kiểm định tiếp theo <span style="font-weight:400;color:#6b7c93">(tự động)</span></label>' +
-          '<div class="bal-next-date-preview" id="bal-preview-next">' + (rec.ngay_kd_tiep_theo || "—") + '</div>' +
+          '<div class="bal-next-date-preview" id="bal-preview-next">' + (rec.ngay_kd_tiep_theo ? HSEDate.fmt(rec.ngay_kd_tiep_theo) : "—") + '</div>' +
         '</div>' +
         '<div class="bal-form-row">' +
           '<label>Ghi chú – Môi chất</label>' +
@@ -547,6 +513,9 @@
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
 
+    /* Gắn flatpickr cho ô ngày (hiển thị DD/MM/YYYY đồng nhất, lưu ISO) */
+    if (window.HSEDate) HSEDate.attachAll(modal);
+
     /* Wire preview */
     ["bal-inp-ngaykd","bal-inp-nam","bal-inp-anmon","bal-inp-chayno"].forEach(function (id) {
       var el = document.getElementById(id);
@@ -562,7 +531,7 @@
 
     /* Save */
     document.getElementById("bal-modal-save").onclick = function () {
-      var ngayDisplay = _inputToDisplay(document.getElementById("bal-inp-ngaykd").value);
+      var ngayISO     = HSEDate.getValue(document.getElementById("bal-inp-ngaykd"));
       var nam         = document.getElementById("bal-inp-nam").value;
       var anMon       = document.getElementById("bal-inp-anmon").checked;
       var chayNo      = document.getElementById("bal-inp-chayno").checked;
@@ -577,8 +546,8 @@
         plv_kgcm2:         document.getElementById("bal-inp-plv").value,
         nam_van_hanh:      nam,
         so_dang_ky:        document.getElementById("bal-inp-sodangky").value.trim(),
-        ngay_kd_gan_nhat:  ngayDisplay,
-        ngay_kd_tiep_theo: _calcNextDate(ngayDisplay, nam, anMon, chayNo),
+        ngay_kd_gan_nhat:  ngayISO,
+        ngay_kd_tiep_theo: _calcNextDate(ngayISO, nam, anMon, chayNo),
         moi_chat_an_mon:   anMon,
         moi_chat_chay_no:  chayNo,
         ghi_chu:           document.getElementById("bal-inp-ghichu").value.trim(),

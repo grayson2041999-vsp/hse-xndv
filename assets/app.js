@@ -1518,7 +1518,8 @@
       $("#sop-ma",bg).value  = rec ? (rec.ma_td||"")   : "";
       $("#sop-ten",bg).value = rec ? (rec.ten_sop||"")  : "";
       $("#sop-dv",bg).value  = rec ? (rec.don_vi||"")   : "";
-      $("#sop-nd",bg).value  = rec ? (sheetDateToLocal(rec.ngay_pd)||"")  : "";
+      if(window.HSEDate) HSEDate.setValue($("#sop-nd",bg), rec ? (rec.ngay_pd||"") : "");
+      else $("#sop-nd",bg).value  = rec ? (sheetDateToLocal(rec.ngay_pd)||"")  : "";
       $("#sop-lk",bg).value  = rec ? (rec.link||"")     : "";
       bg.classList.add("open");
     };
@@ -1537,7 +1538,7 @@
           ma_td:   ma,
           ten_sop: ten,
           don_vi:  $("#sop-dv",bg).value.trim(),
-          ngay_pd: $("#sop-nd",bg).value,
+          ngay_pd: window.HSEDate ? HSEDate.getValue($("#sop-nd",bg)) : $("#sop-nd",bg).value,
           link:    $("#sop-lk",bg).value.trim()
         }, editId);
       }

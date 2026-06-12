@@ -18,7 +18,7 @@
     if (!ketThuc) return null;
     var today = new Date();
     today.setHours(0,0,0,0);
-    var end = _parseDate(ketThuc);
+    var end = HSEDate.parse(ketThuc);   /* đọc được mọi định dạng (ISO, DD-MM-YYYY, DD/MM/YYYY...) */
     if (!end) return null;
     var diff = Math.round((end - today) / 86400000);
     if (diff < 0)   return { cls: "nt-het-han",  label: "Hết hạn",    color: "#c0392b", bg: "#fdedec" };
@@ -26,43 +26,10 @@
     return              { cls: "nt-con-han",  label: "Còn hiệu lực",color: "#1a7a3c", bg: "#eafaf1" };
   }
 
-  function _parseDate(ddmmyyyy) {
-    if (!ddmmyyyy) return null;
-    var p = ddmmyyyy.split("-");
-    if (p.length !== 3) return null;
-    return new Date(parseInt(p[2]), parseInt(p[1])-1, parseInt(p[0]));
-  }
-
-  /* date input (YYYY-MM-DD) ↔ display (DD-MM-YYYY) */
-  function _inputToDisplay(v) {
-    if (!v) return "";
-    var p = v.split("-");
-    return p.length === 3 ? p[2]+"-"+p[1]+"-"+p[0] : v;
-  }
-  function _displayToInput(v) {
-    if (!v) return "";
-    var p = v.split("-");
-    return p.length === 3 ? p[2]+"-"+p[1]+"-"+p[0] : v;
-  }
-
-  /* Chuẩn hóa ngày từ Sheets: ISO string → DD-MM-YYYY */
-  function _normalizeDate(v) {
-    if (!v) return v;
-    /* ISO 8601: "2025-06-03T17:00:00.000Z" */
-    if (typeof v === "string" && v.indexOf("T") > 0) {
-      var d = new Date(v);
-      if (!isNaN(d.getTime())) {
-        return String(d.getDate()).padStart(2,"0") + "-" +
-               String(d.getMonth()+1).padStart(2,"0") + "-" +
-               d.getFullYear();
-      }
-    }
-    return v;
-  }
-
+  /* Chuẩn hóa ngày về ISO YYYY-MM-DD (định dạng lưu trữ chuẩn) */
   function _normalizeRow(r) {
-    r.hd_bat_dau  = _normalizeDate(r.hd_bat_dau);
-    r.hd_ket_thuc = _normalizeDate(r.hd_ket_thuc);
+    r.hd_bat_dau  = HSEDate.toISO(r.hd_bat_dau);
+    r.hd_ket_thuc = HSEDate.toISO(r.hd_ket_thuc);
     return r;
   }
 
@@ -243,7 +210,7 @@
       /* Accordion: tóm tắt thời hạn HĐ */
       var hdSummary = "";
       if (r.hd_bat_dau || r.hd_ket_thuc) {
-        hdSummary = (r.hd_bat_dau ? r.hd_bat_dau : "?") + " → " + (r.hd_ket_thuc ? r.hd_ket_thuc : "?");
+        hdSummary = (r.hd_bat_dau ? HSEDate.fmt(r.hd_bat_dau) : "?") + " → " + (r.hd_ket_thuc ? HSEDate.fmt(r.hd_ket_thuc) : "?");
       }
       var accordionId = "nt-acc-" + r.id;
 
@@ -254,8 +221,8 @@
             : '<span style="color:#aaa;font-size:12px;">Chưa có ▾</span>') +
         '</div>' +
         '<div id="'+accordionId+'" class="nt-acc-detail">' +
-          '<div class="nt-acc-row"><b>Bắt đầu:</b> '+(r.hd_bat_dau ? esc(r.hd_bat_dau) : '—')+'</div>' +
-          '<div class="nt-acc-row"><b>Kết thúc:</b> '+(r.hd_ket_thuc ? esc(r.hd_ket_thuc) : '—')+'</div>' +
+          '<div class="nt-acc-row"><b>Bắt đầu:</b> '+(r.hd_bat_dau ? esc(HSEDate.fmt(r.hd_bat_dau)) : '—')+'</div>' +
+          '<div class="nt-acc-row"><b>Kết thúc:</b> '+(r.hd_ket_thuc ? esc(HSEDate.fmt(r.hd_ket_thuc)) : '—')+'</div>' +
           (r.ghi_chu ? '<div class="nt-acc-row"><b>Ghi chú:</b> '+esc(r.ghi_chu)+'</div>' : '') +
         '</div>';
 
@@ -356,11 +323,11 @@
         '<div class="nt-form-grid">' +
           '<div class="nt-form-group">' +
             '<label class="nt-label">Ngày bắt đầu HĐ</label>' +
-            '<input id="ntf-bd" class="nt-input" type="date" value="'+esc(_displayToInput(rec ? rec.hd_bat_dau : ''))+'">' +
+            '<input id="ntf-bd" class="nt-input" type="date" value="'+esc(HSEDate.toISO(rec ? rec.hd_bat_dau : ''))+'">' +
           '</div>' +
           '<div class="nt-form-group">' +
             '<label class="nt-label">Ngày kết thúc HĐ</label>' +
-            '<input id="ntf-kt" class="nt-input" type="date" value="'+esc(_displayToInput(rec ? rec.hd_ket_thuc : ''))+'">' +
+            '<input id="ntf-kt" class="nt-input" type="date" value="'+esc(HSEDate.toISO(rec ? rec.hd_ket_thuc : ''))+'">' +
           '</div>' +
           '<div class="nt-form-group nt-col-2">' +
             '<label class="nt-label">Ghi chú</label>' +
@@ -377,6 +344,9 @@
       '<div id="nt-form-err" style="color:#c0392b;font-size:13px;margin-top:6px;display:none;"></div>';
 
     wrap.appendChild(card);
+
+    /* Gắn flatpickr cho ô ngày (hiển thị DD/MM/YYYY đồng nhất, lưu ISO) */
+    if (window.HSEDate) HSEDate.attachAll(card);
 
     /* Accordion toggle */
     var accToggle = document.getElementById("nt-form-acc-toggle");
@@ -412,8 +382,8 @@
         lh_ho_ten:    document.getElementById("ntf-lh-ten").value.trim(),
         lh_chuc_danh: document.getElementById("ntf-lh-cd").value.trim(),
         lh_sdt:       document.getElementById("ntf-lh-sdt").value.trim(),
-        hd_bat_dau:   _inputToDisplay(document.getElementById("ntf-bd").value),
-        hd_ket_thuc:  _inputToDisplay(document.getElementById("ntf-kt").value),
+        hd_bat_dau:   HSEDate.getValue(document.getElementById("ntf-bd")),
+        hd_ket_thuc:  HSEDate.getValue(document.getElementById("ntf-kt")),
         ghi_chu:      document.getElementById("ntf-ghichu").value.trim()
       };
 
