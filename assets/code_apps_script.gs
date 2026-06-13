@@ -20,6 +20,10 @@
 
 var SS = SpreadsheetApp.getActiveSpreadsheet();
 
+// Timezone của Spreadsheet — dùng để format ngày khi đọc ra,
+// tránh lệch 1 ngày khi timezone của Apps Script project khác (VN vs UTC)
+var _TZ = SS.getSpreadsheetTimeZone();
+
 // ─────────── CẤU TRÚC CÁC SHEET ĐANG HOẠT ĐỘNG ───────────
 var SCHEMA = {
 
@@ -174,12 +178,12 @@ function _sheetToObjects(sh) {
     var obj = {};
     headers.forEach(function(h, i) {
       var v = row[i];
-      // Convert Date objects → DD/MM/YYYY string (tránh serialize thành ISO string)
+      // Convert Date objects → "yyyy-MM-dd" theo TIMEZONE CỦA SPREADSHEET.
+      // KHÔNG dùng v.getDate()/getMonth()/getFullYear() vì các hàm đó chạy theo
+      // timezone của Apps Script project (thường là UTC) → lệch lùi 1 ngày
+      // so với ngày lưu trên Sheet (GMT+7). Cách fix giống code_apps_script_bhld.gs.
       if (v instanceof Date) {
-        var dd = String(v.getDate()).padStart(2, "0");
-        var mm = String(v.getMonth() + 1).padStart(2, "0");
-        var yy = v.getFullYear();
-        v = dd + "/" + mm + "/" + yy;
+        v = Utilities.formatDate(v, _TZ, "yyyy-MM-dd");
       } else if (typeof v === "string" && (v.charAt(0) === "[" || v.charAt(0) === "{")) {
         try { v = JSON.parse(v); } catch(e) {}
       }
