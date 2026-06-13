@@ -82,7 +82,9 @@ var DB = (function() {
             console.log("[DB Auto-sync] Cập nhật " + rows.length + " users từ Sheets");
           }
         }
-      }).catch(function() {});
+      }).catch(function(e) {
+        console.warn("[DB Auto-sync] Pull users thất bại:", e && e.message || e);
+      });
     }, intervalMinutes * 60 * 1000);
   }
 

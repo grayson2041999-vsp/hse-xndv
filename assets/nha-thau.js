@@ -64,7 +64,9 @@
         _save(normalized);
         _renderTable();
       }
-    }).catch(function() {});
+    }).catch(function(e) {
+      console.warn("[NhaThau] Pull ngầm thất bại:", e && e.message || e);
+    });
   }
 
   /* Push helpers – hiện toast lỗi nếu Sheets thất bại */

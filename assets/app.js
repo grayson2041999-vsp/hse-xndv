@@ -264,7 +264,10 @@
             '<div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">Tài khoản <b>'+esc(un)+'</b> đã được tạo và đang chờ Admin phê duyệt.</div>'+
             '<button class="btn" onclick="document.getElementById(\'hse-login-modal\').classList.remove(\'open\')">Đóng</button>'+
           '</div>';
-      }).catch(function(){ if(regBtn){regBtn.disabled=false;regBtn.textContent="Gửi đăng ký";} });
+      }).catch(function(e){
+        if(regBtn){regBtn.disabled=false;regBtn.textContent="Gửi đăng ký";}
+        alert("❌ Đăng ký thất bại, vui lòng thử lại.\n(" + (e && e.message || "Lỗi kết nối") + ")");
+      });
     });
   }
 
@@ -582,10 +585,10 @@
             });
             save("hse_ke_hoach_mot_lan", rows);
           }
-        }).catch(function(){}),
+        }).catch(function(e){ console.warn("[KeHoach] Pull mot_lan thất bại:", e && e.message || e); }),
         DB.getAll("ke_hoach_lap_lai").then(function(rows){
           if(rows && rows.length) save("hse_ke_hoach_lap_lai", rows);
-        }).catch(function(){})
+        }).catch(function(e){ console.warn("[KeHoach] Pull lap_lai thất bại:", e && e.message || e); })
       ]).then(function(){
         // Rebuild hse_ke_hoach_links từ dữ liệu vừa pull
         var once  = load("hse_ke_hoach_mot_lan", []);
@@ -621,7 +624,7 @@
           var tmp = el("div"); renderKeHoachDashboard(tmp);
           existing.parentNode.replaceChild(tmp.lastChild, existing);
         }
-      }).catch(function(){});
+      }).catch(function(e){ console.warn("[Dashboard] Pull kế hoạch thất bại:", e && e.message || e); });
     }
   }
 
@@ -1483,7 +1486,7 @@
     if(typeof DB !== "undefined" && DB.isReady()){
       DB.getAll("sop").then(function(rows){
         if(rows && rows.length){ save(K_SOP, rows); refreshDvOptions(); draw(); }
-      }).catch(function(){});
+      }).catch(function(e){ console.warn("[SOP] Pull thất bại:", e && e.message || e); });
     }
 
     refreshDvOptions(); draw();
