@@ -145,8 +145,9 @@ var BHLD = (function() {
       });
   }
 
-  // ─── Push: Bulk Insert (nhiều dòng trong 1 request) ───
-  function bulkInsert(sheet, rows) {
+  // ─── Push: Bulk Replace — XOÁ TOÀN BỘ sheet rồi ghi lại ───
+  // Dùng cho ton_kho (snapshot trạng thái hiện tại), KHÔNG dùng cho log/lịch sử
+  function bulkReplace(sheet, rows) {
     if (!rows || !rows.length) return Promise.resolve({ ok: true, count: 0 });
     var now = new Date().toISOString();
     rows.forEach(function(obj) {
@@ -156,7 +157,24 @@ var BHLD = (function() {
     if (!getUrl()) return Promise.resolve({ ok: true, local: true });
     return _apiFetch({ action: 'bulkWrite', sheet: sheet }, 'POST', { data: rows })
       .then(function(res) {
-        if (!res.ok) throw new Error(res.error || 'bulkInsert thất bại');
+        if (!res.ok) throw new Error(res.error || 'bulkReplace thất bại');
+        return res;
+      });
+  }
+
+  // ─── Push: Bulk Append — CHÈN THÊM nhiều dòng, không xoá dữ liệu cũ ───
+  // Dùng cho lich_su_nhap_xuat (log giao dịch), không bao giờ thay thế lịch sử
+  function bulkAppend(sheet, rows) {
+    if (!rows || !rows.length) return Promise.resolve({ ok: true, count: 0 });
+    var now = new Date().toISOString();
+    rows.forEach(function(obj) {
+      if (!obj.id) obj.id = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+      if (!obj.createdAt) obj.createdAt = now;
+    });
+    if (!getUrl()) return Promise.resolve({ ok: true, local: true });
+    return _apiFetch({ action: 'bulkAppend', sheet: sheet }, 'POST', { data: rows })
+      .then(function(res) {
+        if (!res.ok) throw new Error(res.error || 'bulkAppend thất bại');
         return res;
       });
   }
@@ -217,7 +235,7 @@ var BHLD = (function() {
     lsGet: lsGet,
     lsSet: lsSet,
     pull: pull,
-    push: { insert: insert, bulkInsert: bulkInsert, update: update, delete: remove },
+    push: { insert: insert, bulkReplace: bulkReplace, bulkAppend: bulkAppend, update: update, delete: remove },
     testConnection: testConnection,
     LS_MAP: LS_MAP
   };

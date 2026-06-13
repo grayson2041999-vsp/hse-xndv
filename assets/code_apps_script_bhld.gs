@@ -451,6 +451,34 @@ function _handleBulkWrite(params, body) {
   return { ok: true, count: rows.length };
 }
 
+// Chèn thêm nhiều dòng mà KHÔNG xoá dữ liệu cũ — dùng cho log/lịch sử
+function _handleBulkAppend(params, body) {
+  var sh = _getSheet(params.sheet, true);
+  var rows = body.data || [];
+  if (rows.length === 0) return { ok: true, count: 0 };
+
+  // Đảm bảo các cột mới có trong header
+  var allKeys = [];
+  rows.forEach(function(obj) {
+    Object.keys(obj).forEach(function(k) { if (allKeys.indexOf(k) < 0) allKeys.push(k); });
+  });
+  if (sh.getLastRow() === 0) {
+    sh.appendRow(allKeys);
+    var hr = sh.getRange(1, 1, 1, allKeys.length);
+    hr.setBackground("#003087").setFontColor("#ffffff").setFontWeight("bold");
+    sh.setFrozenRows(1);
+  } else {
+    _ensureColumns(sh, rows[0]);
+  }
+
+  // Chèn thêm — không deleteRows
+  rows.forEach(function(obj) {
+    if (!obj.id) obj.id = _genId();
+    sh.appendRow(_objToRow(sh, obj));
+  });
+  return { ok: true, count: rows.length };
+}
+
 function _handleSchema() {
   var result = {};
   Object.keys(SCHEMA).forEach(function(k) {
@@ -481,8 +509,9 @@ function doGet(e) {
       case "insert":    result = _handleInsert(p, body); break;
       case "update":    result = _handleUpdate(p, body); break;
       case "delete":    result = _handleDelete(p, body); break;
-      case "bulkWrite": result = _handleBulkWrite(p, body); break;
-      default:          result = { ok: false, error: "Action không hợp lệ: " + action };
+      case "bulkWrite":  result = _handleBulkWrite(p, body); break;
+      case "bulkAppend": result = _handleBulkAppend(p, body); break;
+      default:           result = { ok: false, error: "Action không hợp lệ: " + action };
     }
     return _cors(result);
   } catch(err) {
@@ -502,8 +531,9 @@ function doPost(e) {
       case "insert":    result = _handleInsert(p, body); break;
       case "update":    result = _handleUpdate(p, body); break;
       case "delete":    result = _handleDelete(p, body); break;
-      case "bulkWrite": result = _handleBulkWrite(p, body); break;
-      default:          result = { ok: false, error: "Action không hợp lệ: " + action };
+      case "bulkWrite":  result = _handleBulkWrite(p, body); break;
+      case "bulkAppend": result = _handleBulkAppend(p, body); break;
+      default:           result = { ok: false, error: "Action không hợp lệ: " + action };
     }
     return _cors(result);
   } catch(err) {
