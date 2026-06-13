@@ -1184,7 +1184,7 @@ function resetForm(){
   document.getElementById("doanBody").innerHTML=""; document.getElementById("c34VPBody").innerHTML="";
   addDoanRow(); addVPRow34();
   buildThangNamSelects();
-  if(window.HSEDate)HSEDate.setToday(document.getElementById("c34Ngay"));else document.getElementById("c34Ngay").value=new Date().toISOString().slice(0,10);
+  if(window.HSEDate)HSEDate.setToday(document.getElementById("c34Ngay"));else{var _t=new Date();document.getElementById("c34Ngay").value=_t.getFullYear()+"-"+String(_t.getMonth()+1).padStart(2,"0")+"-"+String(_t.getDate()).padStart(2,"0");}
 }
 
 /* ═══════════════════════════════════════════════════

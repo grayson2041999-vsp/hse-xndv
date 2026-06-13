@@ -579,7 +579,8 @@ function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2
 function fmtDate(s){
   if(!s)return"—";
   if(typeof s==="string"&&s.indexOf("T")>=0) s=s.split("T")[0];
-  if(s instanceof Date) s=s.toISOString().split("T")[0];
+  // Dùng HSEDate.toISO thay vì toISOString() để tránh lệch ngày do UTC vs GMT+7
+  if(s instanceof Date) s=window.HSEDate ? HSEDate.toISO(s) : (s.getFullYear()+"-"+String(s.getMonth()+1).padStart(2,"0")+"-"+String(s.getDate()).padStart(2,"0"));
   var p=String(s).split("-");
   return p.length===3?p[2]+"/"+p[1]+"/"+p[0]:s;
 }
