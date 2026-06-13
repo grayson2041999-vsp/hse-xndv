@@ -211,16 +211,27 @@ function _objToRow(sh, obj) {
   });
 }
 
-// Set format "@" (Plain text) cho các cột TEXT_FIELDS trong 1 sheet
-// → Sheets hiển thị đúng "0901234567" thay vì 901234567
+// Set format "@" (Plain text) cho các cột TEXT_FIELDS — phải gọi TRƯỚC khi ghi dữ liệu.
+// Lý do: nếu gọi sau appendRow/setValues thì Sheets đã kịp convert "0901..." → 901...
+// Format toàn bộ cột (đến hàng 2000) để bao phủ cả hàng sắp ghi vào.
 function _applyTextFormat(sh) {
   var headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
   headers.forEach(function(h, i) {
     if (TEXT_FIELDS.indexOf(h) >= 0) {
-      var lastRow = Math.max(sh.getLastRow() - 1, 1);
-      sh.getRange(2, i + 1, lastRow, 1).setNumberFormat("@");
+      sh.getRange(2, i + 1, 2000, 1).setNumberFormat("@");
     }
   });
+}
+
+// Chạy 1 lần thủ công trong Apps Script Editor để set Plain text
+// cho các cột TEXT_FIELDS trên TẤT CẢ các sheet → sửa ô cũ bị mất số 0
+function fixTextFormat() {
+  Object.keys(SCHEMA).forEach(function(name) {
+    var sh = SS.getSheetByName(name);
+    if (sh) _applyTextFormat(sh);
+  });
+  SpreadsheetApp.flush();
+  Logger.log("✅ Đã set Plain text format cho tất cả cột mã số / SĐT!");
 }
 
 function _findRowById(sh, id) {
@@ -276,9 +287,9 @@ function _handleInsert(params, body) {
     hr.setBackground("#003087").setFontColor("#ffffff").setFontWeight("bold");
     sh.setFrozenRows(1);
   }
+  _applyTextFormat(sh);            // ← set Plain text TRƯỚC khi ghi
   var row = _objToRow(sh, obj);
   sh.appendRow(row);
-  _applyTextFormat(sh);
   return { ok: true, data: obj };
 }
 
@@ -288,9 +299,9 @@ function _handleUpdate(params, body) {
   if (rowNum < 0) return { ok: false, error: "Không tìm thấy id=" + params.id };
   var existing = _sheetToObjects(sh).find(function(r) { return String(r.id) === String(params.id); });
   var updated = Object.assign({}, existing, body.data || body, { id: params.id, updated_at: new Date().toISOString() });
+  _applyTextFormat(sh);            // ← set Plain text TRƯỚC khi ghi
   var row = _objToRow(sh, updated);
   sh.getRange(rowNum, 1, 1, row.length).setValues([row]);
-  _applyTextFormat(sh);
   return { ok: true, data: updated };
 }
 
@@ -330,11 +341,11 @@ function _handleBulkWrite(params, body) {
   if (sh.getLastRow() > 1) {
     sh.deleteRows(2, sh.getLastRow() - 1);
   }
+  _applyTextFormat(sh);            // ← set Plain text TRƯỚC khi ghi hàng loạt
   rows.forEach(function(obj) {
     if (!obj.id) obj.id = _genId();
     sh.appendRow(_objToRow(sh, obj));
   });
-  _applyTextFormat(sh);
   return { ok: true, count: rows.length };
 }
 
