@@ -1198,18 +1198,22 @@ function _nvRow(n,idx,showDrag,showNhomCol,donViFilter){
       nhomCell=`<td><span style="font-size:12px;color:${g?'var(--primary)':'var(--text-light)'};">${g?`<b>[${g.id}]</b> ${g.ten}`:'—'}</span></td>`;
     }
   }
+  const _warns=_nvWarnings(n);
+  const _wf={}; _warns.forEach(w=>_wf[w.field]=w);
+  const _wc=(field,inner)=>{const w=_wf[field];return`<td style="text-align:center;${w?'background:#fdecea;':''}">${inner}${w?' <span style="color:#c0392b;">⚠️</span>':''}</td>`;};
+  const _warnBtn=_warns.length?`<button class="btn btn-sm" onclick="openNVWarning('${n.id}')" title="${_warns.length} cảnh báo tháng cấp" style="background:#fff3cd;border:1px solid #e0a800;color:#8a6d00;padding:1px 7px;margin-left:6px;border-radius:6px;font-size:11.5px;font-weight:700;cursor:pointer;">⚠️ ${_warns.length}</button>`:'';
   return`<tr data-id="${n.id}" ${dragAttrs}>
     ${sttCell}
     <td><code style="background:#f4f7fa;padding:2px 6px;border-radius:4px;">${n.danhSo}</code></td>
-    <td><strong>${n.ten}</strong>${genderIcon}${moiBadge}</td>
+    <td><strong>${n.ten}</strong>${genderIcon}${_warnBtn}${moiBadge}</td>
     <td>${n.chucDanh}</td>
     ${showNhomCol?nhomCell:`<td>${n.boPhan||'—'}</td>`}
-    <td style="text-align:center;">${_fThang(n.thangCapQuanAo)}</td>
-    <td style="text-align:center;">${_fThang(n.thangCapGiay)}</td>
-    <td style="text-align:center;">${_fThang(n.thangCapMu)}</td>
-    <td style="text-align:center;">${_fThang(n.thangCapKinh)}</td>
-    <td style="text-align:center;">${_fThang(n.thangCapAoMua)}</td>
-    <td style="text-align:center;">${n.chucDanh==='Thợ hàn'?_fThang(n.thangCapQAHan):'<span style="color:var(--text-light);font-size:11px;">N/A</span>'}</td>
+    ${_wc('thangCapQuanAo',_fThang(n.thangCapQuanAo))}
+    ${_wc('thangCapGiay',_fThang(n.thangCapGiay))}
+    ${_wc('thangCapMu',_fThang(n.thangCapMu))}
+    ${_wc('thangCapKinh',_fThang(n.thangCapKinh))}
+    ${_wc('thangCapAoMua',_fThang(n.thangCapAoMua))}
+    ${n.chucDanh==='Thợ hàn'?_wc('thangCapQAHan',_fThang(n.thangCapQAHan)):`<td style="text-align:center;"><span style="color:var(--text-light);font-size:11px;">N/A</span></td>`}
     <td style="text-align:center;">${actionBtns}</td>
   </tr>`;
 }
@@ -1880,6 +1884,109 @@ function tinhThangCapTiepTheo(nv,dmEntry){
   else{if(isQuanAo)lastMonthStr=nv.thangCapQuanAo||null;else if(isAoMua)lastMonthStr=nv.thangCapAoMua||null;else if(isQAHan)lastMonthStr=nv.thangCapQAHan||null;else if(isGiay)lastMonthStr=nv.thangCapGiay||null;else if(isNon)lastMonthStr=nv.thangCapMu||null;else if(isKinh)lastMonthStr=nv.thangCapKinh||null;}
   if(!lastMonthStr)return null;
   const [_ly,_lm]=lastMonthStr.split('-').map(Number);const lastDate=new Date(_ly,_lm-1,1);const monthsToAdd=chuKy*multiplier;lastDate.setMonth(lastDate.getMonth()+Math.round(monthsToAdd));return _yyyymm(lastDate);
+}
+
+// ═══════════════════════════════════════════════════════
+// CẢNH BÁO THÁNG CẤP KHÔNG HỢP LỆ (tab Nhân viên)
+//  - Chỉ áp dụng nhân viên cũ, trang bị có theo dõi tháng (loại trừ găng tay/khẩu trang)
+//  - Mốc tham chiếu = đầu quý của quy_start (admin chọn ở tab Phiếu yêu cầu)
+// ═══════════════════════════════════════════════════════
+function _addMonths(yyyymm,n){const[y,m]=yyyymm.split('-').map(Number);const d=new Date(y,m-1+(n||0),1);return _yyyymm(d);}
+function _getQuyStartRef(){
+  const v=localStorage.getItem('bhld_quy_start');
+  if(v) return v;
+  if(typeof daQuyList!=='undefined'&&daQuyList&&daQuyList.length) return daQuyList[0];
+  return getCurrentQuy();
+}
+// Map nhóm trang bị → trường tháng cấp; trả null nếu không theo dõi tháng (găng tay, khẩu trang…)
+function _tbToThangField(tb){
+  if(!tb) return null;
+  const ten=tb.ten||'';
+  if(ten.includes('Găng tay')||ten==='Khẩu trang') return null;
+  if(tb.loaiCo==='quan_ao'&&ten!=='Áo mưa'&&ten!=='Bộ quần áo thợ hàn') return{field:'thangCapQuanAo',label:'Quần áo'};
+  if(ten==='Áo mưa') return{field:'thangCapAoMua',label:'Áo mưa'};
+  if(ten==='Bộ quần áo thợ hàn') return{field:'thangCapQAHan',label:'QA thợ hàn'};
+  if(tb.loaiCo==='giay') return{field:'thangCapGiay',label:'Giày'};
+  if(ten.includes('Mũ')) return{field:'thangCapMu',label:'Mũ bảo hộ'};
+  if(ten==='Kính bảo hộ') return{field:'thangCapKinh',label:'Kính bảo hộ'};
+  return null;
+}
+// Trả về mảng cảnh báo cho 1 nhân viên
+function _nvWarnings(nv){
+  const out=[];
+  if(!nv||nv.loaiNV==='moi') return out;                 // bỏ qua nhân viên mới
+  const cd=getChucDanhByTen(nv.chucDanh);
+  const dmList=daDinhMuc.filter(d=>(cd&&d.chucDanhId==cd.id)||d.chucDanh===nv.chucDanh);
+  if(!dmList.length) return out;                          // chức danh không có định mức → bỏ qua
+  const dauQuy=getQuarterMonths(_getQuyStartRef())[0];    // 'YYYY-MM'
+  const curMonth=today().slice(0,7);
+  const seen={};
+  dmList.forEach(d=>{
+    const tb=getTB(d.trangBiId||d.nhomTBId); if(!tb) return;
+    const map=_tbToThangField(tb); if(!map) return;        // loại trừ trang bị không theo dõi tháng
+    if(seen[map.field]) return; seen[map.field]=1;
+    const chuKy=Math.round(Number(d.chuKy)||0);
+    const rec=nv[map.field]||'';
+    const suggest=chuKy>0?_addMonths(dauQuy,-chuKy):'';
+    if(!rec){ out.push({field:map.field,label:map.label,type:'missing',chuKy,suggest}); return; }
+    if(!/^\d{4}-\d{2}$/.test(rec)){ out.push({field:map.field,label:map.label,type:'format',rec,chuKy,suggest}); return; }
+    if(rec>curMonth){ out.push({field:map.field,label:map.label,type:'future',rec,chuKy,suggest}); return; }
+    if(chuKy>0){ const nextDue=_addMonths(rec,chuKy); if(nextDue<dauQuy) out.push({field:map.field,label:map.label,type:'stale',rec,nextDue,chuKy,suggest}); }
+  });
+  return out;
+}
+const _WARN_TXT={
+  missing:'Thiếu dữ liệu tháng cấp',
+  stale:'Tháng cấp quá cũ (đã lố hơn một chu kỳ)',
+  future:'Tháng cấp nằm ở tương lai',
+  format:'Tháng cấp sai định dạng'
+};
+function _ensureWarnModal(){
+  if(document.getElementById('modal-canhbao')) return;
+  const div=document.createElement('div');
+  div.id='modal-canhbao'; div.className='modal-overlay';
+  div.innerHTML='<div class="modal" style="max-width:560px;"><div class="modal-header"><span class="modal-title">⚠️ Cảnh báo tháng cấp</span><button class="modal-close" onclick="closeModal(\'modal-canhbao\')">×</button></div><div id="canhbao-body" style="padding:4px 2px;"></div></div>';
+  document.body.appendChild(div);
+}
+function openNVWarning(id){
+  const nv=getNV(id); if(!nv) return;
+  _ensureWarnModal();
+  const warns=_nvWarnings(nv);
+  const dauQuy=getQuarterMonths(_getQuyStartRef())[0];
+  const canEdit=canEditUnit(nv.boPhan);
+  let html=`<div style="font-size:13px;color:var(--text-light);margin-bottom:12px;">Nhân viên <b>${_escH(nv.ten)}</b> (${_escH(nv.chucDanh)}) — mốc quý đang xét: <b>${_fThangTxt(dauQuy)}</b></div>`;
+  if(!warns.length){ html+='<div style="padding:14px;text-align:center;color:#1a7a3c;font-weight:600;">✓ Không còn cảnh báo nào.</div>'; }
+  warns.forEach(w=>{
+    let reason='';
+    if(w.type==='missing') reason=`Chức danh có định mức cấp <b>${w.label}</b> (chu kỳ ${w.chuKy} tháng) nhưng chưa ghi nhận tháng cấp gần nhất.`;
+    else if(w.type==='stale') reason=`Lần cấp ghi nhận <b>${_fThangTxt(w.rec)}</b> + chu kỳ ${w.chuKy} tháng → đến hạn <b>${_fThangTxt(w.nextDue)}</b>, đã trước mốc quý <b>${_fThangTxt(dauQuy)}</b>. Nghĩa là đã lố ít nhất một kỳ cấp mà chưa được ghi nhận.`;
+    else if(w.type==='future') reason=`Tháng cấp ghi nhận <b>${_fThangTxt(w.rec)}</b> nằm ở tương lai so với hiện tại.`;
+    else reason=`Giá trị tháng cấp "<b>${_escH(w.rec||'')}</b>" không đúng định dạng YYYY-MM.`;
+    html+=`<div style="border:1px solid #f0d0cc;background:#fdecea;border-radius:8px;padding:10px 12px;margin-bottom:10px;">
+      <div style="font-weight:700;color:#c0392b;font-size:13.5px;margin-bottom:4px;">${w.label} — ${_WARN_TXT[w.type]||''}</div>
+      <div style="font-size:12.5px;color:#444;line-height:1.55;">${reason}</div>`;
+    if(w.suggest){
+      html+=`<div style="margin-top:9px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span style="font-size:12.5px;">Đề xuất sửa thành <b>${_fThangTxt(w.suggest)}</b></span>`;
+      if(canEdit) html+=`<button class="btn btn-primary btn-sm" onclick="applyNVWarningFix('${id}','${w.field}','${w.suggest}')">Áp dụng</button>`;
+      else html+=`<span style="font-size:11.5px;color:var(--text-light);">(bạn không có quyền sửa đơn vị này)</span>`;
+      html+=`</div>`;
+    }
+    html+=`</div>`;
+  });
+  document.getElementById('canhbao-body').innerHTML=html;
+  openModal('modal-canhbao');
+}
+function applyNVWarningFix(id,field,month){
+  const nv=getNV(id); if(!nv) return;
+  if(!canEditUnit(nv.boPhan)){ showToast('Bạn không có quyền chỉnh sửa đơn vị này.','error'); return; }
+  const idx=daNhanVien.findIndex(x=>x.id===id); if(idx<0) return;
+  daNhanVien[idx][field]=month;
+  saveData('nhanvien',daNhanVien); BHLD.lsSet('nhanvien',daNhanVien);
+  _bhldPush('update','nhanvien',id,{[field]:month});
+  showToast('Đã cập nhật tháng cấp.','success');
+  renderTableNV();
+  openNVWarning(id);
 }
 
 function computeQuyData(quyStr,filterDonVi){
