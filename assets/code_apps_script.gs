@@ -113,6 +113,16 @@ var SCHEMA = {
   binh_ap_luc: {
     cols: ["id","section","order","ten_thiet_bi","vi_tri","v_m3","plv_kgcm2","nam_van_hanh","so_dang_ky","ngay_kd_gan_nhat","ngay_kd_tiep_theo","moi_chat_an_mon","moi_chat_chay_no","ghi_chu","createdBy","createdAt","updatedAt"],
     desc: "Quản lý thiết bị – Bình áp lực (section: cang_bien / xuong_sua_chua)"
+  },
+
+  // ── TAI NẠN - SỰ CỐ ──
+  tnsc_gio_cong: {
+    cols: ["id","nam","thang","gio_cong","createdBy","createdAt","updatedBy","updatedAt"],
+    desc: "Tai nạn - Sự cố – Giờ công lao động an toàn theo tháng"
+  },
+  tnsc_su_kien: {
+    cols: ["id","ten","loai","mucDo","thoiGian","moTa","nanNhan","otms","createdBy","createdAt","updatedBy","updatedAt"],
+    desc: "Tai nạn - Sự cố – Ghi nhận TNLĐ / sự cố kỹ thuật (loai: tai_nan_lao_dong/su_co_ky_thuat; nanNhan & otms lưu JSON; thoiGian dạng 'YYYY-MM-DD HH:mm')"
   }
 };
 
@@ -197,7 +207,7 @@ function _sheetToObjects(sh) {
 
 // Các cột phải lưu dạng text để Sheets không tự convert thành số
 // (mất số 0 đầu ở SĐT, id bị format thành số thập phân, v.v.)
-var TEXT_FIELDS = ["id", "lh_sdt", "createdAt", "updatedAt"];
+var TEXT_FIELDS = ["id", "lh_sdt", "createdAt", "updatedAt", "thoiGian"];
 
 function _objToRow(sh, obj) {
   var headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
@@ -286,6 +296,15 @@ function _handleInsert(params, body) {
     var hr = sh.getRange(1, 1, 1, keys.length);
     hr.setBackground("#003087").setFontColor("#ffffff").setFontWeight("bold");
     sh.setFrozenRows(1);
+  }
+  // UPSERT: nếu id đã tồn tại (retry / bấm Lưu 2 lần) → cập nhật thay vì thêm dòng mới
+  var existingRow = _findRowById(sh, obj.id);
+  if (existingRow > 0) {
+    var existing = _sheetToObjects(sh).find(function(r) { return String(r.id) === String(obj.id); });
+    var merged = Object.assign({}, existing, obj);
+    _applyTextFormat(sh);
+    sh.getRange(existingRow, 1, 1, _objToRow(sh, merged).length).setValues([_objToRow(sh, merged)]);
+    return { ok: true, data: merged };
   }
   _applyTextFormat(sh);            // ← set Plain text TRƯỚC khi ghi
   var row = _objToRow(sh, obj);
