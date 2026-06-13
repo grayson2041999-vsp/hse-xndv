@@ -630,7 +630,7 @@
       _updateRecord(Object.assign({}, existing, record));
     } else {
       record.id = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
-      record.created_at = new Date().toISOString();
+      record.createdAt = new Date().toISOString();
       _insertRecord(record);
     }
 

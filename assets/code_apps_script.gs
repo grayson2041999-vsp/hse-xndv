@@ -79,7 +79,7 @@ var SCHEMA = {
 
   // ── HUẤN LUYỆN - ĐÀO TẠO ──
   hl_nhansu: {
-    cols: ["id","loai_huan_luyen","name","pid","title","unit","lastDate","note","created_at"],
+    cols: ["id","loai_huan_luyen","name","pid","title","unit","lastDate","note","createdAt"],
     desc: "Huấn luyện – Danh sách nhân sự"
   },
   hl_settings: {
@@ -99,19 +99,19 @@ var SCHEMA = {
 
   // ── KHÁM SỨC KHOẺ ──
   ksk: {
-    cols: ["id","nam","loai","tong","da_kham","updatedBy","updatedAt","created_at"],
+    cols: ["id","nam","loai","tong","da_kham","updatedBy","updatedAt","createdAt"],
     desc: "Khám sức khoẻ – Tiến độ khám SK định kỳ & bệnh nghề nghiệp (loai: dinh_ky/benh_nghe_1/benh_nghe_2)"
   },
 
   // ── QUẢN LÝ NHÀ THẦU ──
   nha_thau: {
-    cols: ["id","ten_nha_thau","khu_vuc","hang_muc","lh_ho_ten","lh_chuc_danh","lh_sdt","hd_bat_dau","hd_ket_thuc","ghi_chu","created_at"],
+    cols: ["id","ten_nha_thau","khu_vuc","hang_muc","lh_ho_ten","lh_chuc_danh","lh_sdt","hd_bat_dau","hd_ket_thuc","ghi_chu","createdAt"],
     desc: "Quản lý nhà thầu – Thông tin các nhà thầu thuê kho, bãi, văn phòng"
   },
 
   // ── QUẢN LÝ THIẾT BỊ – BÌNH ÁP LỰC ──
   binh_ap_luc: {
-    cols: ["id","section","order","ten_thiet_bi","vi_tri","v_m3","plv_kgcm2","nam_van_hanh","so_dang_ky","ngay_kd_gan_nhat","ngay_kd_tiep_theo","moi_chat_an_mon","moi_chat_chay_no","ghi_chu","createdBy","created_at","updated_at"],
+    cols: ["id","section","order","ten_thiet_bi","vi_tri","v_m3","plv_kgcm2","nam_van_hanh","so_dang_ky","ngay_kd_gan_nhat","ngay_kd_tiep_theo","moi_chat_an_mon","moi_chat_chay_no","ghi_chu","createdBy","createdAt","updatedAt"],
     desc: "Quản lý thiết bị – Bình áp lực (section: cang_bien / xuong_sua_chua)"
   }
 };
@@ -197,7 +197,7 @@ function _sheetToObjects(sh) {
 
 // Các cột phải lưu dạng text để Sheets không tự convert thành số
 // (mất số 0 đầu ở SĐT, id bị format thành số thập phân, v.v.)
-var TEXT_FIELDS = ["id", "lh_sdt", "created_at", "createdAt", "updatedAt", "updated_at"];
+var TEXT_FIELDS = ["id", "lh_sdt", "createdAt", "updatedAt"];
 
 function _objToRow(sh, obj) {
   var headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
@@ -279,7 +279,7 @@ function _handleInsert(params, body) {
   var sh = _getSheet(params.sheet, true);
   var obj = body.data || body;
   if (!obj.id) obj.id = _genId();
-  if (!obj.created_at) obj.created_at = new Date().toISOString();
+  if (!obj.createdAt) obj.createdAt = new Date().toISOString();
   if (sh.getLastColumn() === 0) {
     var keys = Object.keys(obj);
     sh.appendRow(keys);
@@ -298,7 +298,7 @@ function _handleUpdate(params, body) {
   var rowNum = _findRowById(sh, params.id);
   if (rowNum < 0) return { ok: false, error: "Không tìm thấy id=" + params.id };
   var existing = _sheetToObjects(sh).find(function(r) { return String(r.id) === String(params.id); });
-  var updated = Object.assign({}, existing, body.data || body, { id: params.id, updated_at: new Date().toISOString() });
+  var updated = Object.assign({}, existing, body.data || body, { id: params.id, updatedAt: new Date().toISOString() });
   _applyTextFormat(sh);            // ← set Plain text TRƯỚC khi ghi
   var row = _objToRow(sh, updated);
   sh.getRange(rowNum, 1, 1, row.length).setValues([row]);

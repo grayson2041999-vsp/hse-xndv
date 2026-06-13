@@ -404,7 +404,7 @@
       var rec = all.find(function (r) { return r.id === tr.dataset.id; });
       if (rec) {
         rec.order      = idx;
-        rec.updated_at = new Date().toISOString();
+        rec.updatedAt = new Date().toISOString();
         _pushUpdate(rec);
       }
     });
@@ -551,7 +551,7 @@
         moi_chat_an_mon:   anMon,
         moi_chat_chay_no:  chayNo,
         ghi_chu:           document.getElementById("bal-inp-ghichu").value.trim(),
-        updated_at:        new Date().toISOString()
+        updatedAt:         new Date().toISOString()
       };
 
       if (!updated.ten_thiet_bi) { alert("Vui lòng nhập tên thiết bị."); return; }
@@ -559,7 +559,7 @@
       var all = _load();
       if (isNew) {
         updated.createdBy  = typeof HSE !== "undefined" && HSE.currentUser ? HSE.currentUser().username : "";
-        updated.created_at = new Date().toISOString();
+        updated.createdAt = new Date().toISOString();
         all.push(updated);
         _save(all);
         _pushInsert(updated);
