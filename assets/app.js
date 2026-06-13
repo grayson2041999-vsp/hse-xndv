@@ -13,6 +13,7 @@
   /* -------- DANH MỤC MODULE (nguồn dữ liệu duy nhất) -------- */
   var MENU = [
     { slug:"tong-quan",          title:"Tổng quan",                   icon:"📊", sub:["Số giờ làm việc an toàn","Tai nạn, sự cố gần nhất"] },
+    { slug:"tai-nan-su-co",      title:"Tai nạn - Sự cố",             icon:"⚠️", sub:["Giờ công lao động an toàn","Ghi nhận tai nạn - sự cố"] },
     { slug:"pccc-cnch",          title:"PCCC & CNCH",                 icon:"🧯", sub:["Hệ thống báo cháy tự động (BCTĐ)","Phương tiện CC & CNCH"] },
     { slug:"cap-phat-bhld",      title:"Cấp phát BHLĐ",               icon:"🦺", sub:["Quản lý cấp phát","Danh mục BHLĐ","Định mức cấp phát","Phiếu yêu cầu","Tồn kho","Nhu cầu mua sắm"] },
     { slug:"huan-luyen-dao-tao", title:"Huấn luyện - Đào tạo",        icon:"🎓", sub:["Thống kê các loại đào tạo, huấn luyện","Kiểm tra kiến thức an toàn","Đào tạo nội bộ"] },
