@@ -195,13 +195,31 @@ function _sheetToObjects(sh) {
   });
 }
 
+// Các cột phải lưu dạng text để Sheets không tự convert thành số
+// (mất số 0 đầu ở SĐT, id bị format thành số thập phân, v.v.)
+var TEXT_FIELDS = ["id", "lh_sdt", "created_at", "createdAt", "updatedAt", "updated_at"];
+
 function _objToRow(sh, obj) {
   var headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
   return headers.map(function(h) {
     var v = obj[h];
     if (v === undefined || v === null) return "";
     if (typeof v === "object") return JSON.stringify(v);
+    // Ép string cho các cột mã/SĐT để Sheets không tự convert thành số
+    if (TEXT_FIELDS.indexOf(h) >= 0) return String(v);
     return v;
+  });
+}
+
+// Set format "@" (Plain text) cho các cột TEXT_FIELDS trong 1 sheet
+// → Sheets hiển thị đúng "0901234567" thay vì 901234567
+function _applyTextFormat(sh) {
+  var headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  headers.forEach(function(h, i) {
+    if (TEXT_FIELDS.indexOf(h) >= 0) {
+      var lastRow = Math.max(sh.getLastRow() - 1, 1);
+      sh.getRange(2, i + 1, lastRow, 1).setNumberFormat("@");
+    }
   });
 }
 
@@ -260,6 +278,7 @@ function _handleInsert(params, body) {
   }
   var row = _objToRow(sh, obj);
   sh.appendRow(row);
+  _applyTextFormat(sh);
   return { ok: true, data: obj };
 }
 
@@ -271,6 +290,7 @@ function _handleUpdate(params, body) {
   var updated = Object.assign({}, existing, body.data || body, { id: params.id, updated_at: new Date().toISOString() });
   var row = _objToRow(sh, updated);
   sh.getRange(rowNum, 1, 1, row.length).setValues([row]);
+  _applyTextFormat(sh);
   return { ok: true, data: updated };
 }
 
@@ -314,6 +334,7 @@ function _handleBulkWrite(params, body) {
     if (!obj.id) obj.id = _genId();
     sh.appendRow(_objToRow(sh, obj));
   });
+  _applyTextFormat(sh);
   return { ok: true, count: rows.length };
 }
 

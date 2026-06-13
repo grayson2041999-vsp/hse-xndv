@@ -124,19 +124,6 @@
     var toolbar = document.createElement("div");
     toolbar.className = "nt-toolbar";
 
-    /* Nút làm mới */
-    var btnRefresh = document.createElement("button");
-    btnRefresh.className = "nt-btn nt-btn-outline";
-    btnRefresh.innerHTML = "🔄 Làm mới";
-    btnRefresh.onclick = function() {
-      btnRefresh.disabled = true; btnRefresh.innerHTML = "⏳ Đang tải...";
-      _pull(function() {
-        btnRefresh.disabled = false; btnRefresh.innerHTML = "🔄 Làm mới";
-        _renderTable();
-      });
-    };
-    toolbar.appendChild(btnRefresh);
-
     if (_canEdit) {
       var btnAdd = document.createElement("button");
       btnAdd.className = "nt-btn nt-btn-primary";
