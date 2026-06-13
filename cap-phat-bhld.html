@@ -230,7 +230,10 @@
      TRANG: ĐỊNH MỨC CẤP PHÁT
      ============================ -->
 <div id="page-dinh-muc" class="page">
-  <div class="page-title">📐 Định mức cấp phát</div>
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+    <div class="page-title" style="margin:0;">📐 Định mức cấp phát</div>
+    <button class="btn btn-primary" onclick="exportDinhMucWord()">📄 Xuất Word</button>
+  </div>
   <div style="display:inline-flex;align-items:center;gap:8px;background:#EDF1F8;border-left:4px solid var(--primary);border-radius:6px;padding:9px 16px;margin-bottom:16px;font-size:13px;color:var(--text-light);">
     📄 Căn cứ tài liệu <strong style="color:var(--primary);">VSP-000-ATMT-411</strong>, phiên bản <strong style="color:var(--primary);">03</strong>
   </div>
@@ -397,10 +400,11 @@
     <div>
       <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">Quý bắt đầu</label>
       <div style="display:flex;gap:8px;align-items:center;">
-        <select id="nhucau-quy-start" style="min-width:140px;padding:7px 10px;border:1px solid #ccc;border-radius:6px;font-size:13px;">
-          <option value="">-- Chọn quý --</option>
+        <select id="nhucau-q" style="min-width:80px;padding:7px 10px;border:1px solid #ccc;border-radius:6px;font-size:13px;">
+          <option value="1">Q1</option><option value="2">Q2</option><option value="3">Q3</option><option value="4">Q4</option>
         </select>
-        <button class="btn btn-outline btn-sm" onclick="autoSelectNearestQuy()" title="Tự động chọn quý gần nhất">🔄 Tự động</button>
+        <span style="font-size:13px;color:#666;">/</span>
+        <input id="nhucau-y" type="number" min="2020" max="2099" placeholder="Năm" style="width:90px;padding:7px 8px;border:1px solid #ccc;border-radius:6px;font-size:13px;text-align:center;">
       </div>
     </div>
     <div style="padding-bottom:2px;color:#666;font-size:13px;line-height:1.6;">→ Tính nhu cầu cho <strong>4 quý liên tiếp</strong> từ quý được chọn</div>
@@ -2575,6 +2579,44 @@ function exportPhieuWord(){
   const blob=new Blob(['﻿',html],{type:'application/msword'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`phieu-bhld-${quyStr.replace('/','_')}-${filterDonVi.replace(/\s+/g,'-')}.doc`;a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);showToast(`✅ Đã xuất phiếu Word – ${quyStr} – ${filterDonVi}!`);
 }
 
+async function exportDinhMucWord(){
+  const td=`border:1px solid #000;padding:4px 7px;vertical-align:middle;`;
+  const th=td+`text-align:center;background:#efefef;font-weight:bold;`;
+  // Gom định mức theo chức danh; mỗi chức danh nhiều trang bị (gộp ô STT + Chức danh)
+  let stt=0;let body='';
+  daChucDanh.forEach(cd=>{
+    const items=daDinhMuc.filter(d=>d.chucDanhId==cd.id||d.chucDanh===cd.ten).sort((a,b)=>(a.thuTu||0)-(b.thuTu||0));
+    if(!items.length)return;
+    stt++;
+    items.forEach((d,i)=>{
+      const tb=getTB(d.trangBiId||d.nhomTBId);const tenTB=tb?tb.ten:('ID:'+(d.trangBiId||d.nhomTBId));
+      const ck=(d.chuKy!==undefined&&d.chuKy!=='')?`${d.chuKy} tháng`:'';
+      if(i===0){
+        body+=`<tr><td rowspan="${items.length}" style="${td}text-align:center;">${stt}</td><td rowspan="${items.length}" style="${td}">${_escH(cd.ten)}</td><td style="${td}">${_escH(tenTB)}</td><td style="${td}text-align:center;">${ck}</td></tr>`;
+      }else{
+        body+=`<tr><td style="${td}">${_escH(tenTB)}</td><td style="${td}text-align:center;">${ck}</td></tr>`;
+      }
+    });
+  });
+  if(!body){showToast('Chưa có định mức để xuất.','warning');return;}
+  // Nhúng logo Vietsovpetro (base64) — bỏ qua nếu không tải được
+  let logoTag='';
+  try{
+    const resp=await fetch('assets/vsp_logo_bctd.jpeg');
+    const lblob=await resp.blob();
+    const dataUri=await new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.onerror=rej;fr.readAsDataURL(lblob);});
+    logoTag=`<img src="${dataUri}" style="width:95px;height:auto;">`;
+  }catch(e){logoTag='';}
+  const html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><style>@page{margin:1.5cm 2cm;size:A4 portrait;}body{font-family:"Times New Roman",serif;font-size:12pt;}table{border-collapse:collapse;}p{margin:0;}</style></head><body>
+<table style="width:100%;border:none;margin-bottom:8pt;"><tr><td style="border:none;width:110px;text-align:center;vertical-align:middle;">${logoTag}</td><td style="border:none;text-align:center;vertical-align:middle;"><strong style="font-size:11pt;">LIÊN DOANH VIỆT – NGA VIETSOVPETRO</strong><br><strong style="font-size:11pt;">XÍ NGHIỆP DỊCH VỤ CẢNG VÀ CUNG ỨNG VẬT TƯ THIẾT BỊ</strong></td></tr></table>
+<p style="text-align:center;font-weight:bold;font-size:14pt;margin:8pt 0 14pt;">ĐỊNH MỨC CẤP PHÁT TRANG BỊ BẢO HỘ LAO ĐỘNG VÀ PHƯƠNG TIỆN BẢO VỆ CÁ NHÂN</p>
+<table style="width:100%;"><thead><tr><th style="${th}width:6%;">STT</th><th style="${th}width:33%;">Chức danh</th><th style="${th}width:43%;">Trang bị</th><th style="${th}width:18%;">Chu kỳ cấp phát</th></tr></thead><tbody>${body}</tbody></table>
+<p style="margin-top:16pt;font-style:italic;font-size:11pt;">Nguồn: <strong>VSP-000-ATMT-411</strong> “Định mức cấp phát trang bị bảo hộ lao động và các phương tiện bảo vệ cá nhân cho CBCNV Vietsovpetro”.</p>
+</body></html>`;
+  const blob=new Blob(['﻿',html],{type:'application/msword'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='dinh-muc-cap-phat-bhld.doc';a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);
+  showToast('✅ Đã xuất file định mức Word!');
+}
+
 function exportChiTietExcel(){
   if(typeof XLSX==='undefined'){showToast('⚠️ Thư viện Excel chưa tải.','error');return;}
   const sel=document.getElementById('bc-quy');if(!sel||!sel.value){showToast('⚠️ Vui lòng chọn quý!','warning');return;}
@@ -2590,8 +2632,29 @@ function exportChiTietExcel(){
 // ========= TỒN KHO =========
 function renderTonKho(){
   const actEl=document.getElementById('ton-kho-actions');
-  if(actEl)actEl.innerHTML=isAdmin()?`<button class="btn btn-primary" onclick="openModalKho('nhap')">📥 Nhập kho</button><button class="btn btn-outline" onclick="openModalKho('xuat')">📤 Xuất kho</button>`:'';
+  if(actEl){
+    const adminBtns=isAdmin()?`<button class="btn btn-primary" onclick="openModalKho('nhap')">📥 Nhập kho</button><button class="btn btn-outline" onclick="openModalKho('xuat')">📤 Xuất kho</button>`:'';
+    actEl.innerHTML=adminBtns+`<button class="btn btn-outline" onclick="exportTonKhoExcel()">📊 Xuất Excel</button>`;
+  }
   switchTonKhoTab('hientai');
+}
+function exportTonKhoExcel(){
+  if(typeof XLSX==='undefined'){showToast('⚠️ Thư viện Excel chưa tải.','error');return;}
+  let stt=0;const rows=[];
+  daNhomTB.forEach(nhom=>{
+    daDanhMuc.filter(d=>d.nhomId==nhom.id).forEach(dm=>{
+      stt++;
+      rows.push([stt, dm.ten, dm.donVi||nhom.donVi||'', daTonKho[dm.id]||0]);
+    });
+  });
+  if(!rows.length){showToast('Chưa có dữ liệu tồn kho.','warning');return;}
+  const ngay=new Date().toLocaleDateString('vi-VN');
+  const aoa=[['BÁO CÁO TỒN KHO TRANG BỊ BHLĐ & PTBVCN'],['Ngày xuất: '+ngay],[],['STT','Tên trang bị','Đơn vị tính','Số lượng tồn kho'],...rows];
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols']=[{wch:6},{wch:42},{wch:14},{wch:18}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Tồn kho');
+  XLSX.writeFile(wb,`TonKho_BHLD_${new Date().toISOString().slice(0,10)}.xlsx`);
+  showToast('📥 Đã xuất file tồn kho Excel!');
 }
 function switchTonKhoTab(tab){
   ['hientai','nhap','xuat'].forEach(t=>{document.getElementById(`tk-tab-${t}`)?.classList.toggle('active',t===tab);const panel=document.getElementById(`tk-panel-${t}`);if(panel)panel.style.display=t===tab?'':'none';});
@@ -2873,20 +2936,18 @@ function xacNhanKho(type){
 
 // ========= NHU CẦU MUA SẮM =========
 function initNhuCauPage(){
-  const sel=document.getElementById('nhucau-quy-start');if(!sel)return;
-  const curQ=getCurrentQuy();const options=(daQuyList&&daQuyList.length>0?daQuyList:_defaultQuyList()).filter(q=>_compareQuy(q,curQ)>=0);
-  const prevVal=sel.value;sel.innerHTML='<option value="">-- Chọn quý bắt đầu --</option>';
-  options.forEach(qStr=>{const opt=document.createElement('option');opt.value=qStr;opt.textContent=qStr;sel.appendChild(opt);});
-  if(prevVal&&options.includes(prevVal))sel.value=prevVal;else if(options.length>0)sel.value=options[0];
+  const qEl=document.getElementById('nhucau-q');const yEl=document.getElementById('nhucau-y');if(!qEl||!yEl)return;
+  // Mặc định = quý + năm hiện tại
+  const [qp,yp]=getCurrentQuy().split('/');
+  if(!qEl.value||qEl.value==='')qEl.value=qp.slice(1);
+  if(!yEl.value)yEl.value=yp;
   document.getElementById('nhucau-result').innerHTML='';document.getElementById('nhucau-quy-label').style.display='none';document.getElementById('btn-export-nhucau').style.display='none';
 }
-function autoSelectNearestQuy(){
-  const sel=document.getElementById('nhucau-quy-start');if(!sel)return;const curQ=getCurrentQuy();const list=daQuyList&&daQuyList.length>0?daQuyList:_defaultQuyList();const nearest=list.find(q=>_compareQuy(q,curQ)>=0);
-  if(nearest){const opts=Array.from(sel.options).map(o=>o.value);if(opts.includes(nearest)){sel.value=nearest;}else{const opt=document.createElement('option');opt.value=nearest;opt.textContent=nearest;sel.appendChild(opt);sel.value=nearest;}showToast('✅ Đã chọn chu kỳ gần nhất: '+nearest);}
-  else showToast('Không tìm thấy chu kỳ hợp lệ.','error');
-}
 function tinhNhuCau(){
-  const startQ=document.getElementById('nhucau-quy-start').value;if(!startQ){showToast('Vui lòng chọn quý bắt đầu.','error');return;}
+  const q=document.getElementById('nhucau-q').value;
+  const y=(document.getElementById('nhucau-y').value||'').trim();
+  if(!q||!y||y.length!==4){showToast('Vui lòng chọn quý và nhập năm (4 chữ số).','error');return;}
+  const startQ=`Q${q}/${y}`;
   const curQ=getCurrentQuy();if(_compareQuy(startQ,curQ)<0){showToast('Quý bắt đầu không được trước quý hiện tại ('+curQ+').','error');return;}
   const quyList=[startQ];for(let i=1;i<4;i++)quyList.push(_nextQuy(quyList[i-1]));
   const labelEl=document.getElementById('nhucau-quy-label');labelEl.textContent='📅 4 quý tính toán: '+quyList.join(' → ');labelEl.style.display='';
