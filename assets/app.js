@@ -53,11 +53,10 @@
     if(u) DB.setUser(u.username);
     if(!DB.isReady()) return; // Chưa có URL thì thôi
     // Pull từ Sheets sau 2s khi trang load xong
+    // (đủ để đồng bộ — không cần auto-sync định kỳ, tránh ghi đè tài khoản mới)
     setTimeout(function(){
       DB.syncUsersFromSheets(K_USERS);
     }, 2000);
-    // Auto-sync mỗi 5 phút
-    DB.startAutoSync(K_USERS, 5);
   }
 
   /* -------- KHỞI TẠO TÀI KHOẢN MẶC ĐỊNH -------- */
@@ -83,14 +82,25 @@
   function setUsers(u){
     u = dedupUsers(u);
     save(K_USERS, u);
-    // Đẩy lên Sheets ngầm (write-through cache)
-    if(typeof DB !== "undefined" && DB.isReady()){
-      DB.bulkWrite("users", u).then(function(){
-        showToast("☁️ Đã đồng bộ " + u.length + " tài khoản lên Sheets!", "success");
-      }).catch(function(e){
-        showToast("⚠️ Lưu local OK nhưng chưa sync Sheets: " + e.message, "warning");
-      });
-    }
+    // Sheet sync được thực hiện riêng tại từng thao tác qua _syncUserSheet()
+    // thay vì bulkWrite toàn bộ danh sách ở đây
+  }
+
+  // Đồng bộ 1 user lên Sheet theo đúng loại thao tác: 'insert' | 'update' | 'delete'
+  // insert: userOrId là object user mới
+  // update: userOrId là object user đầy đủ (cần có .id)
+  // delete: userOrId là id string
+  function _syncUserSheet(action, userOrId){
+    if(typeof DB === "undefined" || !DB.isReady()) return;
+    var p;
+    if(action === 'insert')      p = DB.insert("users", userOrId);
+    else if(action === 'update') p = DB.update("users", userOrId.id, userOrId);
+    else if(action === 'delete') p = DB.delete("users", userOrId);
+    if(p) p.then(function(){
+      showToast("☁️ Đã đồng bộ tài khoản lên Sheets!", "success");
+    }).catch(function(e){
+      showToast("⚠️ Lưu local OK nhưng chưa sync Sheets: " + (e && e.message || e), "warning");
+    });
   }
   function findUser(un){ var u=getUsers(); for(var i=0;i<u.length;i++) if(u[i].username===un) return u[i]; return null; }
 
@@ -254,9 +264,11 @@
       var regBtn=document.getElementById("hse-reg-submit");
       if(regBtn){regBtn.disabled=true;regBtn.textContent="Đang xử lý...";}
       hashPw(pw).then(function(hashed){
-        u.push({ id:Date.now().toString(36), username:un, password:hashed, fullname:fn, danhSo:ds,
-          role:"viewer", perms:[], active:false, pendingApproval:true, created:new Date().toISOString() });
+        var newUser={ id:Date.now().toString(36), username:un, password:hashed, fullname:fn, danhSo:ds,
+          role:"viewer", perms:[], active:false, pendingApproval:true, created:new Date().toISOString() };
+        u.push(newUser);
         setUsers(u);
+        _syncUserSheet('insert', newUser);
         document.getElementById("hse-reg-panel").innerHTML=
           '<div style="text-align:center;padding:24px 0;">'+
             '<div style="font-size:40px;margin-bottom:12px;">✅</div>'+
@@ -693,16 +705,19 @@
     function delUser(un){
       if(un===currentUser().username){ alert("Không thể xoá tài khoản đang đăng nhập."); return; }
       if(!confirm("Xoá người dùng \""+un+"\"?")) return;
+      var delTarget=findUser(un);
       setUsers(getUsers().filter(function(x){return x.username!==un;}));
+      if(delTarget) _syncUserSheet('delete', delTarget.id);
       draw($("#q").value);
     }
     function lockUser(un){
-      var u=getUsers(); u.forEach(function(x){ if(x.username===un){ if(un===currentUser().username && x.active!==false){ alert("Không thể khoá tài khoản đang đăng nhập."); return; } x.active = x.active===false; } });
-      setUsers(u); draw($("#q").value);
+      var u=getUsers(); var changedUser=null;
+      u.forEach(function(x){ if(x.username===un){ if(un===currentUser().username && x.active!==false){ alert("Không thể khoá tài khoản đang đăng nhập."); return; } x.active = x.active===false; changedUser=x; } });
+      setUsers(u); if(changedUser) _syncUserSheet('update', changedUser); draw($("#q").value);
     }
 
     modal.onSave=function(data, originalUsername){
-      var u=getUsers();
+      var u=getUsers(); var sheetUser=null; var sheetAction=null;
       if(originalUsername){
         for(var i=0;i<u.length;i++){
           if(u[i].username===originalUsername){
@@ -714,17 +729,20 @@
             u[i].updated=new Date().toISOString();
             if(data.password){ u[i].password=data.password; }
             if(data.approve){ u[i].active=true; u[i].pendingApproval=false; }
+            sheetUser=u[i]; sheetAction='update';
           }
         }
       } else {
         if(findUser(data.username)){ alert("Email này đã được sử dụng."); return false; }
-        u.push({ id:Date.now().toString(36), username:data.username,
+        var newUser={ id:Date.now().toString(36), username:data.username,
           password:data.password, fullname:data.fullname,
           danhSo:data.danhSo||"", role:data.role, perms:data.perms,
           capPhatUnits:data.capPhatUnits||[],
-          active:true, created:new Date().toISOString() });
+          active:true, created:new Date().toISOString() };
+        u.push(newUser);
+        sheetUser=newUser; sheetAction='insert';
       }
-      setUsers(u); draw($("#q").value); return true;
+      setUsers(u); if(sheetUser) _syncUserSheet(sheetAction, sheetUser); draw($("#q").value); return true;
     };
 
     $("#addU").addEventListener("click", function(){ modal.open(null); });
@@ -944,11 +962,11 @@
         return hashPw(nw);
       }).then(function(newHash){
         if(!newHash) return;
-        var u=getUsers();
+        var u=getUsers(); var changedUser=null;
         for(var i=0;i<u.length;i++){
-          if(u[i].username===me.username){ u[i].password=newHash; u[i].updated=new Date().toISOString(); break; }
+          if(u[i].username===me.username){ u[i].password=newHash; u[i].updated=new Date().toISOString(); changedUser=u[i]; break; }
         }
-        setUsers(u);
+        setUsers(u); if(changedUser) _syncUserSheet('update', changedUser);
         saveBtn.disabled=false;
         showOk("✅ Đổi mật khẩu thành công!");
         document.getElementById("dmk-cur").value="";
@@ -1000,11 +1018,11 @@
       var okEl=document.getElementById("pf-ok");
       errEl.style.display="none"; okEl.style.display="none";
       if(!fn){ errEl.textContent="Vui lòng nhập họ và tên."; errEl.style.display="block"; return; }
-      var users=getUsers(); var me2=currentUser();
+      var users=getUsers(); var me2=currentUser(); var changedUser=null;
       for(var i=0;i<users.length;i++){
-        if(users[i].username===me2.username){ users[i].fullname=fn; users[i].danhSo=ds; users[i].updated=new Date().toISOString(); break; }
+        if(users[i].username===me2.username){ users[i].fullname=fn; users[i].danhSo=ds; users[i].updated=new Date().toISOString(); changedUser=users[i]; break; }
       }
-      setUsers(users);
+      setUsers(users); if(changedUser) _syncUserSheet('update', changedUser);
       okEl.textContent="✅ Đã cập nhật thông tin thành công!"; okEl.style.display="block";
       setTimeout(function(){ location.reload(); },1200);
     });
