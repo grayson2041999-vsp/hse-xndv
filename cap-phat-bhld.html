@@ -1878,7 +1878,7 @@ function tinhThangCapTiepTheo(nv,dmEntry){
   const isQuanAo=tb.loaiCo==='quan_ao'&&tb.ten!=='Áo mưa'&&tb.ten!=='Bộ quần áo thợ hàn';
   const isAoMua=tb.ten==='Áo mưa';const isQAHan=tb.ten==='Bộ quần áo thợ hàn';
   const isGiay=tb.loaiCo==='giay';const isNon=tb.ten.includes('Mũ');const isKinh=tb.ten==='Kính bảo hộ';
-  const isDoubleFirst=isQuanAo||isAoMua||isQAHan||isGiay||isKinh;
+  const isDoubleFirst=isQuanAo||isQAHan||isGiay||isKinh; // áo mưa & mũ: cấp 1 bộ, không nhân đôi
   let lastMonthStr=null;let multiplier=1;
   if(!nv.loaiNV||nv.loaiNV==='moi'){const startStr=nv.ngayVaoLam||today();lastMonthStr=startStr.slice(0,7);if(isDoubleFirst)multiplier=2;}
   else{if(isQuanAo)lastMonthStr=nv.thangCapQuanAo||null;else if(isAoMua)lastMonthStr=nv.thangCapAoMua||null;else if(isQAHan)lastMonthStr=nv.thangCapQAHan||null;else if(isGiay)lastMonthStr=nv.thangCapGiay||null;else if(isNon)lastMonthStr=nv.thangCapMu||null;else if(isKinh)lastMonthStr=nv.thangCapKinh||null;}
@@ -1919,7 +1919,6 @@ function _nvWarnings(nv){
   const dmList=daDinhMuc.filter(d=>(cd&&d.chucDanhId==cd.id)||d.chucDanh===nv.chucDanh);
   if(!dmList.length) return out;                          // chức danh không có định mức → bỏ qua
   const dauQuy=getQuarterMonths(_getQuyStartRef())[0];    // 'YYYY-MM'
-  const curMonth=today().slice(0,7);
   const seen={};
   dmList.forEach(d=>{
     const tb=getTB(d.trangBiId||d.nhomTBId); if(!tb) return;
@@ -1928,9 +1927,10 @@ function _nvWarnings(nv){
     const chuKy=Math.round(Number(d.chuKy)||0);
     const rec=nv[map.field]||'';
     const suggest=chuKy>0?_addMonths(dauQuy,-chuKy):'';
+    // Lưu ý: tháng cấp ở tương lai là HỢP LỆ (nhân viên mới được duyệt → tháng cấp = ngày vào làm + chu kỳ),
+    // nên KHÔNG cảnh báo tháng tương lai.
     if(!rec){ out.push({field:map.field,label:map.label,type:'missing',chuKy,suggest}); return; }
     if(!/^\d{4}-\d{2}$/.test(rec)){ out.push({field:map.field,label:map.label,type:'format',rec,chuKy,suggest}); return; }
-    if(rec>curMonth){ out.push({field:map.field,label:map.label,type:'future',rec,chuKy,suggest}); return; }
     if(chuKy>0){ const nextDue=_addMonths(rec,chuKy); if(nextDue<dauQuy) out.push({field:map.field,label:map.label,type:'stale',rec,nextDue,chuKy,suggest}); }
   });
   return out;
@@ -2073,8 +2073,8 @@ function computeNVMoiItems(nv){
     if(tenTB.includes('Găng tay')||tenTB==='Khẩu trang'){
       // Số lượng trong 3 tháng
       soLuong=Math.ceil((3/d.chuKy)*d.soLuong);if(soLuong<1)soLuong=1;
-    } else if(tenTB.includes('Mũ')){
-      soLuong=d.soLuong; // 1× — không tracking chu kỳ
+    } else if(tenTB.includes('Mũ')||tenTB==='Áo mưa'){
+      soLuong=d.soLuong; // 1× — mũ bảo hộ & áo mưa: cấp 1 bộ lần đầu
     } else {
       soLuong=2*d.soLuong; // 2× cho lần đầu
     }
@@ -2274,13 +2274,14 @@ function approvePhieu(id){
       dmList.forEach(d=>{
         const tb=getTB(d.trangBiId||d.nhomTBId);if(!tb)return;
         const tenTB=tb.ten||'';
-        if(tenTB.includes('Mũ'))return; // mũ bảo hộ: 1 lần, không tracking thangCap
         if(tenTB.includes('Găng tay')||tenTB==='Khẩu trang')return; // quarterly — skip
+        // Mũ bảo hộ & Áo mưa: cấp 1 bộ (không nhân đôi) → lần cấp gần nhất = tháng vào làm
+        if(tenTB.includes('Mũ')){changes.thangCapMu=startMM;return;}
+        if(tenTB==='Áo mưa'){changes.thangCapAoMua=startMM;return;}
         const chuKy=d.chuKy||12;
         const [ly,lm]=startMM.split('-').map(Number);
         const nextMM=_yyyymm(new Date(ly,lm-1+Math.round(chuKy),1));
         if(tb.loaiCo==='quan_ao'&&tenTB!=='Áo mưa'&&tenTB!=='Bộ quần áo thợ hàn')changes.thangCapQuanAo=nextMM;
-        else if(tenTB==='Áo mưa')changes.thangCapAoMua=nextMM;
         else if(tenTB==='Bộ quần áo thợ hàn')changes.thangCapQAHan=nextMM;
         else if(tb.loaiCo==='giay')changes.thangCapGiay=nextMM;
         else if(tenTB==='Kính bảo hộ')changes.thangCapKinh=nextMM;
@@ -2895,8 +2896,47 @@ function tinhNhuCau(){
   window._nhucauData=data;window._nhucauQuyList=quyList;
 }
 function _computeNhuCauData(quyList){
+  // Cửa sổ tính = từ tháng đầu của quý đầu tiên đến tháng cuối của quý cuối cùng
+  const wStart=getQuarterMonths(quyList[0])[0];
+  const lastQMonths=getQuarterMonths(quyList[quyList.length-1]);
+  const wEnd=lastQMonths[lastQMonths.length-1];
+  const nQuarters=quyList.length;
   const map={};
-  UNIT_ORDER.forEach(unit=>{quyList.forEach(quyStr=>{const{summary}=computeQuyData(quyStr,unit);summary.forEach(item=>{const key=item.tbId||item.ma||item.ten;if(!map[key])map[key]={tbId:item.tbId,ten:item.ten,ma:item.ma||'',dvUnit:item.donVi,perUnit:{}};UNIT_ORDER.forEach(u=>{if(!map[key].perUnit[u])map[key].perUnit[u]=0;});map[key].perUnit[unit]=(map[key].perUnit[unit]||0)+item.soLuong;});});});
+  function _row(tbSized,tb){
+    const key=tbSized.id;
+    if(!map[key]){map[key]={tbId:tbSized.id,ten:tbSized.ten,ma:tbSized.ma||'',dvUnit:tbSized.donVi||tb.donVi||'',perUnit:{}};UNIT_ORDER.forEach(u=>map[key].perUnit[u]=0);}
+    return map[key];
+  }
+  UNIT_ORDER.forEach(unit=>{
+    daNhanVien.filter(n=>n.boPhan===unit).forEach(nv=>{
+      const _cd=getChucDanhByTen(nv.chucDanh);
+      const dmList=daDinhMuc.filter(d=>(_cd&&d.chucDanhId==_cd.id)||d.chucDanh===nv.chucDanh);
+      dmList.forEach(d=>{
+        const tb=getTB(d.trangBiId||d.nhomTBId);if(!tb)return;
+        const tenTB=tb.ten||'';
+        let tbSized=getTBSized(tb,nv);
+        // Trang bị không cỡ (áo mưa, mũ, kính, khẩu trang, găng tay, ghệt da): getTBSized trả về nhóm trang bị,
+        // nhưng tồn kho lưu theo id danh mục → map sang danh mục để khớp mã vật tư & tồn kho
+        if(tb.loaiCo===''){const _dm=daDanhMuc.find(d=>d.nhomId===tb.id);if(_dm)tbSized=_dm;}
+        // Găng tay & khẩu trang: cấp theo quý → mỗi quý 1 lượng, nhân với số quý trong cửa sổ
+        if(tenTB.includes('Găng tay')||tenTB==='Khẩu trang'){
+          let slQuy=Math.round((3/d.chuKy)*d.soLuong);if(slQuy<1)slQuy=1;
+          _row(tbSized,tb).perUnit[unit]+=slQuy*nQuarters;
+          return;
+        }
+        // Trang bị theo chu kỳ tháng: giả lập các mốc cấp tiếp theo, đếm mốc rơi trong cửa sổ
+        const chuKy=Math.round(Number(d.chuKy)||0);if(chuKy<=0)return;
+        let due=tinhThangCapTiepTheo(nv,d);   // mốc cấp tiếp theo đầu tiên
+        if(!due||due==='quarterly')return;
+        let guard=0;
+        while(due<=wEnd && guard<240){
+          if(due>=wStart) _row(tbSized,tb).perUnit[unit]+=d.soLuong;
+          due=_addMonths(due,chuKy);
+          guard++;
+        }
+      });
+    });
+  });
   return Object.values(map).map(row=>{const tongNhuCau=UNIT_ORDER.reduce((s,u)=>s+(row.perUnit[u]||0),0);const tonKho=daTonKho[row.tbId]||0;const canMua=Math.max(0,tongNhuCau-tonKho);return{...row,tongNhuCau,tonKho,canMua};}).filter(row=>row.tongNhuCau>0).sort((a,b)=>a.ten.localeCompare(b.ten,'vi'));
 }
 function _renderNhuCauTable(data,quyList){
