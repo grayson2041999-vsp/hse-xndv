@@ -2671,7 +2671,7 @@ function xacNhanHoanTac(loai,keyEncoded){
   saveData('tonkho',daTonKho);
   const tkRowsHT=Object.entries(daTonKho).map(([id,soLuong])=>({id,soLuong}));
   BHLD.lsSet('ton_kho',tkRowsHT);
-  BHLD.push.bulkInsert('ton_kho',tkRowsHT);
+  BHLD.push.bulkReplace('ton_kho',tkRowsHT);
   // Xóa các dòng lịch sử khỏi sheet và local
   items.forEach(it=>{BHLD.push.delete('lich_su_nhap_xuat',String(it.id));});
   daTonKhoLichSu=daTonKhoLichSu.filter(r=>!((r.loai||r.type)===loai&&r.tenGiaoDich===tenGD&&r.thangGiaoDich===thangGD));
@@ -2740,7 +2740,7 @@ function xacNhanKho(type){
   // Sync ton_kho lên Sheet: ghi toàn bộ 1 lần (bulkWrite thay thế toàn bộ sheet)
   const tkRows=Object.entries(daTonKho).map(([id,soLuong])=>({id,soLuong}));
   BHLD.lsSet('ton_kho',tkRows);
-  BHLD.push.bulkInsert('ton_kho',tkRows);
+  BHLD.push.bulkReplace('ton_kho',tkRows);
   // Tạo lịch sử: 1 dòng per item (Option A)
   const now=new Date().toISOString();
   const newRows=p.items.map(it=>({
@@ -2757,7 +2757,7 @@ function xacNhanKho(type){
     ghiChu:p.ghiChu||'',
     createdAt:now
   }));
-  BHLD.push.bulkInsert('lich_su_nhap_xuat',newRows);
+  BHLD.push.bulkAppend('lich_su_nhap_xuat',newRows);
   daTonKhoLichSu.unshift(...newRows);saveData('tonkho-lichsu',daTonKhoLichSu);
   BHLD.lsSet('lich_su_nhap_xuat',daTonKhoLichSu);
   window._khoPreview=null;closeModalKho();showToast(`✅ Đã ${type==='nhap'?'nhập':'xuất'} kho thành công!`);renderTonKhoBang();
