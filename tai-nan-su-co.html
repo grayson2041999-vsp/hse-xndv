@@ -66,6 +66,16 @@
     .stat-label{font-size:11.5px;color:var(--text-light);margin-bottom:5px;line-height:1.4;}
     .stat-value{font-size:22px;font-weight:700;color:var(--primary);}
     .stat-unit{font-size:11px;color:var(--text-light);margin-left:3px;}
+    /* Hero card: tổng giờ công an toàn (nổi bật) */
+    .hour-hero{background:linear-gradient(135deg,#003087 0%,#0060B6 100%);color:#fff;border-radius:12px;padding:20px 24px;box-shadow:0 4px 16px rgba(0,32,101,0.28);border-left:5px solid var(--accent);display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:14px;flex-wrap:wrap;}
+    .hour-hero .hh-label{font-size:13px;opacity:.9;margin-bottom:8px;font-weight:600;letter-spacing:.3px;text-transform:uppercase;}
+    .hour-hero .hh-value{font-size:40px;font-weight:800;line-height:1;}
+    .hour-hero .hh-unit{font-size:16px;font-weight:600;opacity:.85;margin-left:7px;}
+    .hour-hero .hh-sub{font-size:12px;opacity:.82;margin-top:9px;}
+    .hour-hero .hh-sub b{color:#fff;}
+    .btn-detail{background:rgba(255,255,255,0.16);border:1.5px solid rgba(255,255,255,0.45);color:#fff;padding:9px 18px;border-radius:9px;font-size:13.5px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s;}
+    .btn-detail:hover{background:rgba(255,255,255,0.3);}
+    .hour-hero.warn{background:linear-gradient(135deg,#8a5a00 0%,#e68900 100%);border-left-color:#fff;}
     .anchor-note{font-size:12px;color:var(--text-light);margin-bottom:12px;background:#eef3fb;border:1px solid var(--border);border-radius:8px;padding:9px 12px;}
     .anchor-note b{color:var(--primary);}
     .anchor-warn{background:#fef5e4;border-color:#f6d28a;color:#8a5a00;}
@@ -82,11 +92,25 @@
     tr.total-row td{background:#dde6f3;font-weight:700;color:var(--primary);border-top:2px solid #b8c8e4;}
     tr.total-row:hover td{background:#cdd6e8;}
     .no-data{color:#bcc6d8;font-size:12px;}
+    /* Khung chi tiết giờ công (thu gọn, dễ nhìn) */
+    #hourDetail{max-width:470px;}
+    #hourDetail .anchor-note{font-size:11.5px;}
+    #hourDetail .table-wrap{max-height:330px;overflow:auto;box-shadow:0 1px 6px rgba(0,0,0,0.08);}
+    #hourDetail table{font-size:12px;}
+    #hourDetail th{padding:7px 10px;}
+    #hourDetail td{padding:6px 12px;}
+    #hourDetail td.month-col{min-width:96px;}
+    #hourDetail td.action-col{width:78px;}
     /* Incident cards */
-    .inc-list{display:flex;flex-direction:column;gap:14px;}
+    .inc-list{display:flex;flex-direction:column;gap:12px;}
     .inc-card{background:#fff;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.07);border-left:5px solid var(--accent);overflow:hidden;}
     .inc-card.tech{border-left-color:var(--warning);}
-    .inc-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:14px 16px 10px;}
+    .inc-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:13px 16px;cursor:pointer;}
+    .inc-head:hover{background:#f6f9fd;}
+    .inc-caret{display:inline-block;color:var(--text-light);font-size:12px;margin-right:5px;transition:transform .15s;}
+    .inc-card.open .inc-caret{transform:rotate(90deg);}
+    .inc-count{color:var(--text-light);font-size:11.5px;}
+    .inc-body{border-top:1px solid #eef2f8;padding-top:4px;}
     .inc-titlewrap{flex:1;min-width:0;}
     .inc-name{font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px;}
     .inc-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--text-light);}
@@ -249,19 +273,22 @@
 
       <!-- ===== Phần 1: Giờ công lao động an toàn ===== -->
       <div class="section-title">⏱️ Giờ công lao động an toàn</div>
+      <div id="hourHero"></div>
       <div class="stat-grid" id="statCards"></div>
-      <div id="anchorNote"></div>
-      <div class="table-wrap" id="hourTableWrap">
-        <table>
-          <thead>
-            <tr>
-              <th class="left">Tháng</th>
-              <th>Số giờ công an toàn (giờ)</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="hourBody"></tbody>
-        </table>
+      <div id="hourDetail" style="display:none;">
+        <div id="anchorNote"></div>
+        <div class="table-wrap" id="hourTableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th class="left">Tháng</th>
+                <th>Số giờ công an toàn (giờ)</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="hourBody"></tbody>
+          </table>
+        </div>
       </div>
 
       <!-- ===== Phần 2: Ghi nhận tai nạn - sự cố ===== -->
@@ -458,22 +485,22 @@ function renderAll(){ renderHours(); renderIncidents(); }
 function renderHours(){
   var u=currentUser();
   var body=document.getElementById("hourBody");
-  var wrap=document.getElementById("hourTableWrap");
+  var hero=document.getElementById("hourHero");
   var note=document.getElementById("anchorNote");
+  var detail=document.getElementById("hourDetail");
   var st=anchorStart();
-  var months=monthsToInput();
 
   if(!st){
-    note.className="anchor-note anchor-warn";
-    note.innerHTML="Chưa ghi nhận <b>tai nạn lao động</b> nào — bộ đếm giờ công an toàn sẽ bắt đầu tính từ tháng sau tai nạn lao động gần nhất khi có dữ liệu.";
-    wrap.style.display="none";
-    renderHourStats(0,0,null);
+    hero.className="hour-hero warn";
+    hero.innerHTML='<div><div class="hh-label">Tổng giờ công lao động an toàn</div>'+
+      '<div><span class="hh-value">0</span><span class="hh-unit">giờ</span></div>'+
+      '<div class="hh-sub">Chưa ghi nhận tai nạn lao động — chưa xác định mốc tính giờ công an toàn.</div></div>';
+    detail.style.display="none";
+    renderHourCounts();
     return;
   }
-  wrap.style.display="";
-  note.className="anchor-note";
-  note.innerHTML="Tính từ <b>"+MONTHS[st.m-1]+"/"+st.y+"</b> (sau tai nạn lao động gần nhất: <b>"+esc(st.acc.ten||"")+"</b> — "+fmtDateTime(st.acc.thoiGian)+").";
 
+  var months=monthsToInput();
   var total=0, filled=0, rows="";
   months.forEach(function(mm){
     var rec=getHour(mm.y,mm.m);
@@ -494,16 +521,32 @@ function renderHours(){
   rows+='<tr class="total-row"><td class="month-col">Tổng cộng</td>'+
         '<td>'+total.toLocaleString('vi-VN')+'</td><td></td></tr>';
   body.innerHTML=rows;
-  renderHourStats(total,months.length,filled);
+
+  var open=(detail.style.display!=="none");
+  hero.className="hour-hero";
+  hero.innerHTML='<div><div class="hh-label">Tổng giờ công lao động an toàn</div>'+
+    '<div><span class="hh-value">'+total.toLocaleString('vi-VN')+'</span><span class="hh-unit">giờ</span></div>'+
+    '<div class="hh-sub">Tính từ <b>'+MONTHS[st.m-1]+'/'+st.y+'</b></div></div>'+
+    '<button class="btn-detail" id="hourToggleBtn" onclick="toggleHourDetail()">📋 '+(open?'Ẩn chi tiết ▴':'Chi tiết ▾')+'</button>';
+
+  note.className="anchor-note";
+  note.innerHTML="Bảng theo dõi số giờ công lao động an toàn theo từng tháng, tính từ <b>"+MONTHS[st.m-1]+"/"+st.y+"</b> (sau tai nạn lao động gần nhất: <b>"+esc(st.acc.ten||"")+"</b> — "+fmtDateTime(st.acc.thoiGian)+").";
+
+  renderHourCounts();
 }
 
-function renderHourStats(total,monthCount,filled){
+function toggleHourDetail(){
+  var d=document.getElementById("hourDetail");
+  var b=document.getElementById("hourToggleBtn");
+  if(d.style.display==="none"){ d.style.display=""; if(b)b.innerHTML="📋 Ẩn chi tiết ▴"; }
+  else { d.style.display="none"; if(b)b.innerHTML="📋 Chi tiết ▾"; }
+}
+
+function renderHourCounts(){
   var incs=getIncidents();
   var nTN=incs.filter(function(r){return r.loai==="tai_nan_lao_dong";}).length;
   var nSC=incs.filter(function(r){return r.loai==="su_co_ky_thuat";}).length;
   var cards=[
-    {label:'Tổng giờ công lao động an toàn',value:total.toLocaleString('vi-VN'),unit:'giờ',cls:'green'},
-    {label:'Số tháng đã nhập',value:(filled==null?'—':filled+' / '+monthCount),unit:'tháng',cls:''},
     {label:'Số vụ tai nạn lao động',value:nTN.toLocaleString('vi-VN'),unit:'vụ',cls:'red'},
     {label:'Số sự cố kỹ thuật nghiêm trọng',value:nSC.toLocaleString('vi-VN'),unit:'sự cố',cls:'orange'}
   ];
@@ -547,9 +590,16 @@ function renderIncidents(){
     }
     var actions="";
     if(canEdit(u)){
-      actions='<button class="btn btn-edit btn-sm" onclick="openInc(\''+r.id+'\')">✏️ Sửa</button>'+
-              '<button class="btn btn-danger btn-sm" onclick="delInc(\''+r.id+'\')">🗑️ Xoá</button>';
+      actions='<button class="btn btn-edit btn-sm" onclick="event.stopPropagation();openInc(\''+r.id+'\')">✏️ Sửa</button>'+
+              '<button class="btn btn-danger btn-sm" onclick="event.stopPropagation();delInc(\''+r.id+'\')">🗑️ Xoá</button>';
     }
+    // Cảnh báo OTM trễ hạn + đếm nhanh (hiện ngay ở dòng thu gọn)
+    var lateCount=(r.otms||[]).filter(function(o){return otmStatus(o).label==="Trễ hạn";}).length;
+    var lateBadge=lateCount?' <span class="badge badge-red">⚠ '+lateCount+' OTM trễ hạn</span>':'';
+    var cparts=[];
+    if(isTN && r.nanNhan && r.nanNhan.length) cparts.push(r.nanNhan.length+' nạn nhân');
+    if(r.otms && r.otms.length) cparts.push(r.otms.length+' OTM');
+    var counts=cparts.length?' <span class="inc-count">· '+cparts.join(' · ')+'</span>':'';
     var vicHtml="";
     if(r.nanNhan && r.nanNhan.length){
       var vrows=r.nanNhan.map(function(v){
@@ -575,17 +625,26 @@ function renderIncidents(){
         '<table class="otm-table"><thead><tr><th class="left">Nội dung</th><th>Thời hạn</th><th>Tình trạng</th></tr></thead>'+
         '<tbody>'+rows+'</tbody></table></div>';
     }
-    return '<div class="inc-card'+(isTN?'':' tech')+'">'+
-      '<div class="inc-head"><div class="inc-titlewrap">'+
-        '<div class="inc-name">'+esc(r.ten||'(Chưa đặt tên)')+'</div>'+
+    var body=(r.moTa?'<div class="inc-desc">'+esc(r.moTa)+'</div>':'')+vicHtml+otmHtml;
+    if(!body) body='<div class="inc-desc" style="color:var(--text-light);font-style:italic;">Không có thông tin chi tiết bổ sung.</div>';
+    return '<div class="inc-card'+(isTN?'':' tech')+'" data-id="'+esc(r.id)+'">'+
+      '<div class="inc-head" onclick="toggleInc(\''+r.id+'\')"><div class="inc-titlewrap">'+
+        '<div class="inc-name"><span class="inc-caret">▸</span>'+esc(r.ten||'(Chưa đặt tên)')+'</div>'+
         '<div class="inc-meta">'+loaiBadge+mucBadge+
-          ' <span class="inc-time">🕒 '+fmtDateTime(r.thoiGian)+'</span></div>'+
+          ' <span class="inc-time">🕒 '+fmtDateTime(r.thoiGian)+'</span>'+lateBadge+counts+'</div>'+
       '</div><div class="inc-actions">'+actions+'</div></div>'+
-      (r.moTa?'<div class="inc-desc">'+esc(r.moTa)+'</div>':'')+
-      vicHtml+
-      otmHtml+
+      '<div class="inc-body" style="display:none;">'+body+'</div>'+
     '</div>';
   }).join('');
+}
+
+function toggleInc(id){
+  var card=document.querySelector('.inc-card[data-id="'+id+'"]');
+  if(!card)return;
+  var body=card.querySelector('.inc-body');
+  if(!body)return;
+  if(body.style.display==="none"){ body.style.display=""; card.classList.add("open"); }
+  else { body.style.display="none"; card.classList.remove("open"); }
 }
 
 // ══════════════ Modal: Giờ công ══════════════
