@@ -106,6 +106,20 @@
   </div>
   <div style="display:flex;align-items:center;gap:10px;">
     <span class="header-date" id="header-date"></span>
+    <div id="notif-bell-wrap" style="position:relative;display:none;">
+      <button id="notif-bell-btn" onclick="toggleNotifPanel(event)" title="Thông báo"
+        style="position:relative;background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.35);color:#fff;width:36px;height:36px;border-radius:9px;cursor:pointer;font-size:17px;line-height:1;">
+        🔔
+        <span id="notif-badge" style="display:none;position:absolute;top:-6px;right:-6px;background:var(--accent,#C8102E);color:#fff;font-size:10px;font-weight:700;min-width:18px;height:18px;line-height:18px;border-radius:9px;padding:0 4px;">0</span>
+      </button>
+      <div id="notif-panel" style="display:none;position:absolute;right:0;top:46px;width:360px;max-height:460px;overflow-y:auto;background:#fff;border:1px solid var(--border,#dfe3eb);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.18);z-index:1200;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border,#eee);position:sticky;top:0;background:#fff;border-radius:12px 12px 0 0;">
+          <strong style="font-size:14px;color:var(--primary,#003087);">🔔 Thông báo</strong>
+          <button onclick="markAllNotifRead()" style="background:none;border:none;color:var(--primary,#003087);font-size:12px;cursor:pointer;text-decoration:underline;">Đánh dấu đã đọc tất cả</button>
+        </div>
+        <div id="notif-list"></div>
+      </div>
+    </div>
     <div id="header-user-info" style="display:flex;align-items:center;gap:8px;"></div>
   </div>
 </header>
@@ -936,6 +950,92 @@ function getCentralUserUnits(){
   if(u.role==='admin')return null; // null = thấy tất cả
   return Array.isArray(u.capPhatUnits)?u.capPhatUnits:[];
 }
+function _getCurrentUsername(){const u=getCentralUser();return u?u.username:'';}
+
+// ─── Hệ thống thông báo (notifications) ───
+// type: nv_approve | nv_reject | phieu_approve | phieu_reject | change_approve | change_reject
+function _pushNotif(toUsername,type,title,message,relatedId,snapshot){
+  if(!toUsername)return;
+  const notif={
+    toUsername:String(toUsername),type,title:title||'',message:message||'',
+    relatedId:relatedId?String(relatedId):'',
+    snapshot:snapshot?(typeof snapshot==='string'?snapshot:JSON.stringify(snapshot)):'',
+    read:'',createdBy:_getCurrentUserLabel(),createdAt:new Date().toISOString()
+  };
+  _bhldPush('insert','notifications',null,notif);
+}
+function _myNotifs(){
+  const me=_getCurrentUsername();if(!me)return[];
+  return BHLD.lsGet('notifications')
+    .filter(n=>String(n.toUsername)===String(me))
+    .sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0));
+}
+function _updateNotifBadge(){
+  const wrap=document.getElementById('notif-bell-wrap');if(!wrap)return;
+  const u=getCentralUser();
+  // Chuông hiển thị cho user đã đăng nhập (không phải admin — admin là người duyệt)
+  if(!u||u.role==='admin'){wrap.style.display='none';return;}
+  wrap.style.display='inline-block';
+  const unread=_myNotifs().filter(n=>!n.read||n.read==='').length;
+  const badge=document.getElementById('notif-badge');
+  if(badge){badge.textContent=unread>99?'99+':unread;badge.style.display=unread?'inline-block':'none';}
+}
+function _notifIcon(t){return({nv_approve:'✅',nv_reject:'❌',phieu_approve:'✅',phieu_reject:'❌',change_approve:'✅',change_reject:'❌'})[t]||'🔔';}
+function renderNotifPanel(){
+  const list=document.getElementById('notif-list');if(!list)return;
+  const items=_myNotifs();
+  if(!items.length){list.innerHTML='<div style="padding:26px 14px;text-align:center;color:var(--text-light,#888);font-size:13px;">Chưa có thông báo nào.</div>';return;}
+  list.innerHTML=items.map(n=>{
+    const unread=!n.read||n.read==='';
+    const dt=n.createdAt?new Date(n.createdAt).toLocaleString('vi-VN'):'';
+    const hasSnap=n.snapshot&&(n.type==='nv_reject');
+    return `<div onclick="markNotifRead('${n.id}')" style="display:flex;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border,#f0f0f0);cursor:pointer;background:${unread?'#f3f8ff':'#fff'};">
+      <div style="font-size:18px;line-height:1.2;">${_notifIcon(n.type)}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:${unread?'700':'500'};color:var(--text,#222);">${_escH(n.title||'')}</div>
+        <div style="font-size:12.5px;color:var(--text-light,#666);margin-top:2px;white-space:pre-wrap;">${_escH(n.message||'')}</div>
+        ${hasSnap?`<button onclick="event.stopPropagation();restoreNvFromNotif('${n.id}')" class="btn btn-outline btn-sm" style="margin-top:7px;">↩️ Tạo lại nhân viên này</button>`:''}
+        <div style="font-size:11px;color:var(--text-light,#999);margin-top:5px;">${dt}</div>
+      </div>
+      ${unread?'<span style="width:8px;height:8px;border-radius:50%;background:var(--accent,#C8102E);flex-shrink:0;margin-top:5px;"></span>':''}
+    </div>`;
+  }).join('');
+}
+function toggleNotifPanel(e){
+  if(e)e.stopPropagation();
+  const panel=document.getElementById('notif-panel');if(!panel)return;
+  const show=panel.style.display==='none'||!panel.style.display;
+  panel.style.display=show?'block':'none';
+  if(show)renderNotifPanel();
+}
+document.addEventListener('click',function(e){
+  const wrap=document.getElementById('notif-bell-wrap');const panel=document.getElementById('notif-panel');
+  if(wrap&&panel&&!wrap.contains(e.target))panel.style.display='none';
+});
+function markNotifRead(id){
+  const n=BHLD.lsGet('notifications').find(x=>String(x.id)===String(id));
+  if(n&&(!n.read||n.read==='')){_bhldPush('update','notifications',id,{read:'1'});}
+  renderNotifPanel();_updateNotifBadge();
+}
+function markAllNotifRead(){
+  _myNotifs().filter(n=>!n.read||n.read==='').forEach(n=>_bhldPush('update','notifications',n.id,{read:'1'}));
+  renderNotifPanel();_updateNotifBadge();
+}
+function restoreNvFromNotif(id){
+  const n=BHLD.lsGet('notifications').find(x=>String(x.id)===String(id));
+  if(!n||!n.snapshot){showToast('Không có dữ liệu để tạo lại.','warning');return;}
+  let snap;try{snap=JSON.parse(n.snapshot);}catch(e){showToast('Dữ liệu snapshot lỗi.','error');return;}
+  if(!isAdmin()&&!canEditUnit(snap.boPhan||'')){showToast('Bạn không có quyền thao tác đơn vị này.','error');return;}
+  // Tạo lại nhân viên mới từ snapshot (id mới)
+  const {id:_old,...rest}=snap;
+  const newNV={id:nextId(daNhanVien),...rest,loaiNV:'moi'};
+  daNhanVien.push(newNV);
+  saveData('nhanvien',daNhanVien);BHLD.lsSet('nhanvien',daNhanVien);
+  _bhldPush('insert','nhanvien',null,newNV);
+  markNotifRead(id);
+  renderTableNV();
+  showToast('✅ Đã tạo lại nhân viên. Vào tab "Nhân viên mới" để gửi lại phiếu.','success');
+}
 
 let _currentUnit=''; // đơn vị đang xem
 let _searchQuery='';  // search query hiện tại — nguồn thật duy nhất, không đọc lại từ DOM
@@ -1327,6 +1427,7 @@ function openModalNV(){
 }
 function editNV(id){
   if(isViewOnly()){showToast('Bạn không có quyền chỉnh sửa đơn vị này.','error');return;}
+  if(!isAdmin()&&_nvPendingChange(id)){showToast('Nhân viên này đang có thay đổi chờ Admin duyệt. Vui lòng đợi xử lý xong.','warning');return;}
   const n=daNhanVien.find(x=>x.id===id);if(!n)return;
   editingIds.nv=id;
   document.getElementById('modal-nv-title').textContent='Chỉnh sửa nhân viên';
@@ -1376,19 +1477,41 @@ function saveNV(){
   const _now=new Date();const _todayMM=`${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,'0')}`;
   let ngayVaoLamVal=_todayMM;
   if(loaiNV==='moi'){const m=document.getElementById('nv-moi-thang-m').value;const y=document.getElementById('nv-moi-thang-y').value.trim();if(m&&y&&y.length===4)ngayVaoLamVal=`${y}-${m}`;}
+  const _admin=isAdmin();
   if(editingIds.nv){
     const idx=daNhanVien.findIndex(x=>x.id===editingIds.nv);
-    const updatedNgay=loaiNV==='moi'?ngayVaoLamVal:(daNhanVien[idx].ngayVaoLam||_todayMM);
-    daNhanVien[idx]={...daNhanVien[idx],...nvData,ngayVaoLam:updatedNgay};
-    saveData('nhanvien',daNhanVien);BHLD.lsSet('nhanvien',daNhanVien);
-    _bhldPush('update','nhanvien',editingIds.nv,daNhanVien[idx]);
-    showToast('Đã cập nhật thông tin nhân viên!');
+    if(idx<0){showToast('Không tìm thấy nhân viên.','error');return false;}
+    const oldNv=daNhanVien[idx];
+    const updatedNgay=loaiNV==='moi'?ngayVaoLamVal:(oldNv.ngayVaoLam||_todayMM);
+    const proposed={...nvData,ngayVaoLam:updatedNgay};
+    // Admin, hoặc NV 'mới' chưa duyệt (bản nháp do user tạo) → cập nhật trực tiếp
+    if(_admin||oldNv.loaiNV==='moi'){
+      daNhanVien[idx]={...oldNv,...proposed};
+      saveData('nhanvien',daNhanVien);BHLD.lsSet('nhanvien',daNhanVien);
+      _bhldPush('update','nhanvien',editingIds.nv,daNhanVien[idx]);
+      showToast('Đã cập nhật thông tin nhân viên!');
+    } else {
+      // User sửa NV cũ → gửi Admin phê duyệt, KHÔNG đổi dữ liệu gốc
+      if(_nvPendingChange(editingIds.nv)){showToast('Nhân viên này đang có thay đổi chờ duyệt.','warning');closeModal('modal-nv');return true;}
+      const diff=_buildNvDiff(oldNv,proposed);
+      if(!Object.keys(diff.changed).length){showToast('Không có thay đổi nào.','warning');closeModal('modal-nv');return true;}
+      _submitPendingChange('edit',oldNv,proposed,diff);
+      showToast('📨 Đã gửi yêu cầu thay đổi tới Admin để phê duyệt.','success');
+    }
   } else {
-    const newNV={id:nextId(daNhanVien),ngayVaoLam:ngayVaoLamVal,...nvData};
-    daNhanVien.push(newNV);
-    saveData('nhanvien',daNhanVien);BHLD.lsSet('nhanvien',daNhanVien);
-    _bhldPush('insert','nhanvien',null,newNV);
-    showToast('Đã thêm nhân viên!');
+    // Thêm mới: NV 'mới' (qua luồng phiếu) hoặc Admin → thêm trực tiếp; User thêm NV cũ → gửi duyệt
+    if(loaiNV==='moi'||_admin){
+      const newNV={id:nextId(daNhanVien),ngayVaoLam:ngayVaoLamVal,...nvData};
+      daNhanVien.push(newNV);
+      saveData('nhanvien',daNhanVien);BHLD.lsSet('nhanvien',daNhanVien);
+      _bhldPush('insert','nhanvien',null,newNV);
+      showToast('Đã thêm nhân viên!');
+    } else {
+      const proposed={ngayVaoLam:ngayVaoLamVal,...nvData};
+      const diff=_buildNvDiff(null,proposed);
+      _submitPendingChange('add',null,proposed,diff);
+      showToast('📨 Đã gửi yêu cầu thêm nhân viên tới Admin để phê duyệt.','success');
+    }
   }
   closeModal('modal-nv');renderTableNV();
   _populateChucDanhSelect();
@@ -1412,11 +1535,21 @@ function saveNVVaXuatPhieu(){
 function deleteNV(id){
   if(isViewOnly()){showToast('Bạn không có quyền chỉnh sửa đơn vị này.','error');return;}
   const nv=daNhanVien.find(x=>x.id===id);if(!nv)return;
-  if(!confirm('Bạn có chắc muốn xóa nhân viên này?'))return;
-  daNhanVien=daNhanVien.filter(x=>x.id!==id);
-  saveData('nhanvien',daNhanVien);BHLD.lsSet('nhanvien',daNhanVien);
-  _bhldPush('delete','nhanvien',id,null);
-  renderTableNV();showToast('Đã xóa nhân viên.','warning');
+  // Admin hoặc NV 'mới' chưa duyệt (bản nháp do user tạo) → xoá trực tiếp
+  if(isAdmin()||nv.loaiNV==='moi'){
+    if(!confirm('Bạn có chắc muốn xóa nhân viên này?'))return;
+    daNhanVien=daNhanVien.filter(x=>x.id!==id);
+    saveData('nhanvien',daNhanVien);BHLD.lsSet('nhanvien',daNhanVien);
+    _bhldPush('delete','nhanvien',id,null);
+    renderTableNV();showToast('Đã xóa nhân viên.','warning');
+    return;
+  }
+  // User xoá NV cũ → gửi Admin phê duyệt
+  if(_nvPendingChange(id)){showToast('Nhân viên này đang có thay đổi chờ duyệt.','warning');return;}
+  if(!confirm(`Gửi yêu cầu XOÁ nhân viên "${nv.ten}" tới Admin để phê duyệt?`))return;
+  const diff={changed:{x:1},html:`<div style="font-size:13px;">Yêu cầu <b style="color:#b03030;">xoá</b> nhân viên: <b>${_escH(nv.ten)}</b> · Danh số ${_escH(nv.danhSo||'—')} · ${_escH(nv.chucDanh||'')} – ${_escH(nv.boPhan||'')}</div>`};
+  _submitPendingChange('delete',nv,null,diff);
+  showToast('📨 Đã gửi yêu cầu xoá tới Admin để phê duyệt.','success');
 }
 
 function toggleNvMoi(){
@@ -2152,15 +2285,20 @@ function submitPhieuNVMoi(){
   if(!isAdmin()&&isViewOnly()){showToast('Bạn không có quyền gửi phiếu.','error');return;}
   const nvMoiList=daNhanVien.filter(n=>n.loaiNV==='moi');
   if(!nvMoiList.length){showToast('Không có nhân viên mới.','warning');return;}
-  if(!confirm('Gửi phiếu cấp BHLĐ cho tất cả nhân viên mới lên Admin phê duyệt?'))return;
+  // Chống trùng: bỏ qua NV đã có phiếu nv_moi đang chờ duyệt
+  const pendingNvIds=new Set(BHLD.lsGet('phieu_requests').filter(p=>p.type==='nv_moi'&&p.status==='pending').map(p=>String(p.nvId)));
+  const toSend=nvMoiList.filter(nv=>!pendingNvIds.has(String(nv.id)));
+  if(!toSend.length){showToast('Tất cả nhân viên mới đã được gửi và đang chờ duyệt.','warning');return;}
+  const skipped=nvMoiList.length-toSend.length;
+  if(!confirm(`Gửi phiếu cấp BHLĐ cho ${toSend.length} nhân viên mới lên Admin phê duyệt?${skipped?`\n(${skipped} nhân viên đã gửi trước đó sẽ được bỏ qua)`:''}`))return;
   const now=new Date().toISOString();
-  nvMoiList.forEach(nv=>{
+  toSend.forEach(nv=>{
     const items=computeNVMoiItems(nv);
     const itemsFinal=items.map(it=>{const key=`nvmoi_${nv.id}_${it.tbId}`;const saved=window._nvMoiEdits[key]||{};return{tbId:it.tbId,ten:it.ten,ma:it.ma,donVi:it.donVi,soLuongDinhMuc:it.soLuong,thucTe:saved.thucTe!==undefined?saved.thucTe:it.soLuong,ghiChu:saved.ghiChu||'',isMu:it.isMu,chuKy:it.chuKy,trangBiId:it.trangBiId};});
-    const phieu={type:'nv_moi',nvId:String(nv.id),nvTen:nv.ten,nvDanhSo:nv.danhSo||'',chucDanh:nv.chucDanh,donVi:nv.boPhan||'',ngayVaoLam:nv.ngayVaoLam||'',status:'pending',items:JSON.stringify(itemsFinal),submittedBy:_getCurrentUserLabel(),submittedAt:now,createdAt:now};
+    const phieu={type:'nv_moi',nvId:String(nv.id),nvTen:nv.ten,nvDanhSo:nv.danhSo||'',chucDanh:nv.chucDanh,donVi:nv.boPhan||'',ngayVaoLam:nv.ngayVaoLam||'',status:'pending',items:JSON.stringify(itemsFinal),submittedBy:_getCurrentUserLabel(),submittedByUsername:_getCurrentUsername(),submittedAt:now,createdAt:now};
     BHLD.push.insert('phieu_requests',phieu);
   });
-  showToast(`✅ Đã gửi phiếu cho ${nvMoiList.length} nhân viên mới!`);
+  showToast(`✅ Đã gửi phiếu cho ${toSend.length} nhân viên mới!`);
   // Cập nhật badge
   const badge=document.getElementById('choduyet-badge');
   if(badge){const n=BHLD.lsGet('phieu_requests').filter(p=>p.status==='pending').length;badge.textContent=n;badge.style.display=n?'inline':'none';}
@@ -2179,7 +2317,7 @@ function submitPhieuQuy(){
   const qData=phieuData[quyStr]||{};
   const itemsList=[];
   _lastBcRows.forEach(r=>{r.items.forEach(it=>{const key=`${r.nv.id}_${it.tbId}`;const saved=qData[key]||{};itemsList.push({nvId:String(r.nv.id),nvTen:r.nv.ten,tbId:it.tbId,ten:it.ten,soLuongDinhMuc:it.soLuong,thucTe:saved.thucTe!==undefined?saved.thucTe:'',ghiChu:saved.ghiChu||''});});});
-  const phieu={type:'quy',quyStr,donVi:filterDonVi,status:'pending',items:JSON.stringify(itemsList),submittedBy:_getCurrentUserLabel(),submittedAt:now,createdAt:now};
+  const phieu={type:'quy',quyStr,donVi:filterDonVi,status:'pending',items:JSON.stringify(itemsList),submittedBy:_getCurrentUserLabel(),submittedByUsername:_getCurrentUsername(),submittedAt:now,createdAt:now};
   BHLD.push.insert('phieu_requests',phieu).then(()=>{
     _renderQuyStatusBar(quyStr,filterDonVi);
     const badge=document.getElementById('choduyet-badge');
@@ -2206,13 +2344,30 @@ function renderChoduyetTab(){
   const all=BHLD.lsGet('phieu_requests');
   const pending=all.filter(p=>p.status==='pending');
   const handled=all.filter(p=>p.status==='approved').sort((a,b)=>new Date(b.reviewedAt||b.createdAt)-new Date(a.reviewedAt||a.createdAt)).slice(0,20);
+  // Thay đổi nhân sự chờ duyệt
+  const allChanges=BHLD.lsGet('pending_changes');
+  const pendingChanges=allChanges.filter(c=>c.status==='pending');
   // Pending
   const pendingEl=document.getElementById('choduyet-list');
   const emptyEl=document.getElementById('choduyet-empty');
-  if(!pending.length){emptyEl.style.display='block';pendingEl.innerHTML='';}
+  if(!pending.length&&!pendingChanges.length){emptyEl.style.display='block';pendingEl.innerHTML='';}
   else{
     emptyEl.style.display='none';
-    pendingEl.innerHTML=pending.map(p=>{
+    const changeCards=pendingChanges.map(c=>{
+      const tLabel={add:'➕ Thêm nhân viên',edit:'✏️ Sửa thông tin',delete:'🗑️ Xoá nhân viên'}[c.type]||'Thay đổi';
+      return `<div style="border:1.5px solid #f9c74f;border-radius:10px;padding:16px;margin-bottom:16px;background:#fffdf5;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+          <div><strong style="color:var(--primary);">${tLabel}: ${_escH(c.nvTen||'')}</strong> <span style="font-size:12px;color:var(--text-light);">${_escH(c.donVi||'')}</span>
+            <div style="font-size:12px;color:var(--text-light);margin-top:3px;">Gửi bởi: ${_escH(c.submittedBy||'—')} · ${c.submittedAt?new Date(c.submittedAt).toLocaleDateString('vi-VN'):''}</div></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-success btn-sm" onclick="approveChange('${c.id}')">✅ Đồng ý</button>
+            <button class="btn btn-danger btn-sm" onclick="rejectChange('${c.id}')">❌ Từ chối</button>
+          </div>
+        </div>
+        ${c.diffHtml||''}
+      </div>`;
+    }).join('');
+    pendingEl.innerHTML=changeCards+pending.map(p=>{
       const label=p.type==='nv_moi'?`🆕 NV mới: ${_escH(p.nvTen||'')} (${_escH(p.chucDanh||'')}) – ${_escH(p.donVi||'')}`:`📅 Phiếu quý ${p.quyStr} – ${_escH(p.donVi||'')}`;
       const items=_parsePhieuItems(p.items);
       const itemRows=items.map((it,i)=>`<tr><td style="padding:4px 8px;font-size:12px;">${i+1}</td><td style="padding:4px 8px;font-size:12px;">${_escH(it.ten)}</td><td style="padding:4px 8px;font-size:12px;text-align:center;">${it.soLuongDinhMuc||''}</td><td style="padding:4px 8px;font-size:12px;text-align:center;font-weight:600;">${it.thucTe!==''&&it.thucTe!==undefined?it.thucTe:it.soLuongDinhMuc||'—'}</td><td style="padding:4px 8px;font-size:12px;color:var(--text-light);">${it.nvTen?_escH(it.nvTen):''}</td></tr>`).join('');
@@ -2236,23 +2391,34 @@ function renderChoduyetTab(){
       </div>`;
     }).join('');
   }
-  // Đã xử lý
+  // Đã xử lý — gộp phiếu + thay đổi nhân sự đã xử lý
   const daduyetEl=document.getElementById('daduyet-list');
-  if(!handled.length){daduyetEl.innerHTML='<div style="padding:20px;color:var(--text-light);">Chưa có phiếu nào được xử lý.</div>';return;}
-  daduyetEl.innerHTML=handled.map(p=>{
-    const isApproved=p.status==='approved';
-    const label=p.type==='nv_moi'?`NV mới: ${_escH(p.nvTen||'')} – ${_escH(p.donVi||'')}`:`Phiếu quý ${p.quyStr} – ${_escH(p.donVi||'')}`;
-    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;">
-      <span>${label}</span>
-      <div style="display:flex;align-items:center;gap:12px;">
-        <span class="badge ${isApproved?'badge-green':'badge-red'}">${isApproved?'✅ Đã duyệt':'❌ Từ chối'}</span>
-        <span style="font-size:12px;color:var(--text-light);">${p.reviewedBy||''} · ${p.reviewedAt?new Date(p.reviewedAt).toLocaleDateString('vi-VN'):''}</span>
-      </div>
-    </div>`;
-  }).join('');
-  // Cập nhật badge
+  const handledChanges=allChanges.filter(c=>c.status==='approved'||c.status==='rejected');
+  const handledItems=[
+    ...handled.map(p=>({kind:'phieu',rec:p})),
+    ...handledChanges.map(c=>({kind:'change',rec:c}))
+  ].sort((a,b)=>new Date(b.rec.reviewedAt||b.rec.createdAt||0)-new Date(a.rec.reviewedAt||a.rec.createdAt||0)).slice(0,30);
+  if(!handledItems.length){daduyetEl.innerHTML='<div style="padding:20px;color:var(--text-light);">Chưa có mục nào được xử lý.</div>';}
+  else{
+    daduyetEl.innerHTML=handledItems.map(h=>{
+      const r=h.rec;const isApproved=r.status==='approved';
+      let label;
+      if(h.kind==='phieu')label=r.type==='nv_moi'?`NV mới: ${_escH(r.nvTen||'')} – ${_escH(r.donVi||'')}`:`Phiếu quý ${r.quyStr} – ${_escH(r.donVi||'')}`;
+      else label=`${({add:'Thêm',edit:'Sửa',delete:'Xoá'})[r.type]||'Thay đổi'} NS: ${_escH(r.nvTen||'')} – ${_escH(r.donVi||'')}`;
+      const reasonTip=(!isApproved&&r.rejectReason)?` title="Lý do: ${_escH(r.rejectReason)}"`:'';
+      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;"${reasonTip}>
+        <span>${label}</span>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span class="badge ${isApproved?'badge-green':'badge-red'}">${isApproved?'✅ Đã duyệt':'❌ Từ chối'}</span>
+          <span style="font-size:12px;color:var(--text-light);">${r.reviewedBy||''} · ${r.reviewedAt?new Date(r.reviewedAt).toLocaleDateString('vi-VN'):''}</span>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  // Cập nhật badge (phiếu + thay đổi)
+  const totalPending=pending.length+pendingChanges.length;
   const badge=document.getElementById('choduyet-badge');
-  if(badge){badge.textContent=pending.length;badge.style.display=pending.length?'inline':'none';}
+  if(badge){badge.textContent=totalPending;badge.style.display=totalPending?'inline':'none';}
 }
 
 function _parsePhieuItems(itemsJson){if(Array.isArray(itemsJson))return itemsJson;try{return JSON.parse(itemsJson||'[]');}catch(e){return[];}}
@@ -2352,6 +2518,16 @@ function approvePhieu(id){
 
   // Cập nhật status phiếu
   BHLD.push.update('phieu_requests',id,{status:'approved',reviewedBy:reviewer,reviewedAt:now});
+  // Thông báo cho người gửi
+  if(p.submittedByUsername){
+    if(p.type==='nv_moi'){
+      _pushNotif(p.submittedByUsername,'phieu_approve','✅ Phiếu nhân viên mới đã được duyệt',
+        `Phiếu cấp BHLĐ cho "${p.nvTen||''}" (${p.chucDanh||''} – ${p.donVi||''}) đã được ${reviewer} phê duyệt. Tháng cấp tiếp theo đã được cập nhật.`,p.id);
+    } else {
+      _pushNotif(p.submittedByUsername,'phieu_approve','✅ Phiếu quý đã được duyệt',
+        `Phiếu quý ${p.quyStr} – ${p.donVi||''} đã được ${reviewer} phê duyệt.`,p.id);
+    }
+  }
   showToast('✅ Đã phê duyệt phiếu và cập nhật tháng cấp tiếp theo!');
   renderChoduyetTab();
   // Refresh trạng thái phiếu quý nếu đang xem
@@ -2363,9 +2539,119 @@ function approvePhieu(id){
 
 function rejectPhieu(id){
   if(!isAdmin()){showToast('Chỉ Admin mới có quyền.','error');return;}
-  if(!confirm('Trả lại phiếu này? Phiếu sẽ bị xóa và người dùng phải tạo lại.'))return;
-  BHLD.push.delete('phieu_requests',id);
-  showToast('Đã trả lại / xóa phiếu.','warning');
+  const p=BHLD.lsGet('phieu_requests').find(x=>String(x.id)===String(id));if(!p)return;
+  const isNvMoi=p.type==='nv_moi';
+  const warn=isNvMoi
+    ?`Trả lại phiếu này? Nhân viên mới "${p.nvTen||''}" sẽ bị XOÁ khỏi danh sách và phiếu bị huỷ. Người gửi sẽ nhận được thông báo (kèm dữ liệu để tạo lại).`
+    :`Trả lại phiếu quý ${p.quyStr} – ${p.donVi||''}? Phiếu sẽ bị huỷ và người gửi nhận thông báo.`;
+  if(!confirm(warn))return;
+  const reason=(prompt('Nhập lý do từ chối (bắt buộc):','')||'').trim();
+  if(!reason){showToast('Bạn cần nhập lý do từ chối.','warning');return;}
+
+  if(isNvMoi){
+    // Snapshot nhân viên để người gửi tạo lại
+    const nv=daNhanVien.find(n=>String(n.id)===String(p.nvId));
+    const snapshot=nv?{...nv}:null;
+    // Xoá nhân viên khỏi danh sách
+    if(nv){
+      daNhanVien=daNhanVien.filter(n=>String(n.id)!==String(p.nvId));
+      saveData('nhanvien',daNhanVien);BHLD.lsSet('nhanvien',daNhanVien);
+      _bhldPush('delete','nhanvien',p.nvId,null);
+    }
+    // Dọn mọi phiếu nv_moi đang chờ của cùng nhân viên (kể cả trùng)
+    BHLD.lsGet('phieu_requests')
+      .filter(x=>x.type==='nv_moi'&&x.status==='pending'&&String(x.nvId)===String(p.nvId))
+      .forEach(x=>BHLD.push.delete('phieu_requests',x.id));
+    if(p.submittedByUsername){
+      _pushNotif(p.submittedByUsername,'nv_reject','❌ Phiếu nhân viên mới bị từ chối',
+        `Phiếu cấp BHLĐ cho "${p.nvTen||''}" (${p.chucDanh||''} – ${p.donVi||''}) đã bị từ chối.\nLý do: ${reason}\nNhân viên đã bị xoá — bấm "Tạo lại nhân viên này" để khôi phục và gửi lại.`,
+        p.id,snapshot);
+    }
+  } else {
+    BHLD.push.delete('phieu_requests',id);
+    if(p.submittedByUsername){
+      _pushNotif(p.submittedByUsername,'phieu_reject','❌ Phiếu quý bị từ chối',
+        `Phiếu quý ${p.quyStr} – ${p.donVi||''} đã bị từ chối.\nLý do: ${reason}`,p.id);
+    }
+    if(typeof _renderQuyStatusBar==='function')_renderQuyStatusBar(p.quyStr,p.donVi);
+  }
+  showToast('Đã trả lại phiếu và gửi thông báo cho người gửi.','warning');
+  renderTableNV();
+  renderChoduyetTab();
+  const nvMoiCount=daNhanVien.filter(n=>n.loaiNV==='moi').length;
+  const badge=document.getElementById('nvmoi-badge');if(badge){badge.textContent=nvMoiCount;badge.style.display=nvMoiCount?'inline':'none';}
+}
+
+// ─── Luồng duyệt thay đổi nhân sự (pending_changes) ───
+var NV_FIELD_LABELS={danhSo:'Danh số',ten:'Họ tên',chucDanh:'Chức danh',boPhan:'Đơn vị',gioiTinh:'Giới tính',coQuanAo:'Cỡ quần áo',coGiay:'Cỡ giày',loaiNV:'Loại NV',ngayVaoLam:'Tháng vào làm',thangCapQuanAo:'Tháng cấp quần áo',thangCapGiay:'Tháng cấp giày',thangCapMu:'Tháng cấp mũ',thangCapKinh:'Tháng cấp kính',thangCapAoMua:'Tháng cấp áo mưa',thangCapQAHan:'Tháng cấp QA thợ hàn'};
+function _fmtNvVal(f,v){
+  if(v===undefined||v===null||v==='')return'—';
+  if(f==='gioiTinh')return v==='nu'?'Nữ':'Nam';
+  if(f==='loaiNV')return v==='moi'?'Nhân viên mới':'Nhân viên cũ';
+  return String(v);
+}
+function _changeTypeLabel(t){return({add:'thêm nhân viên',edit:'sửa thông tin',delete:'xoá nhân viên'})[t]||'thay đổi';}
+function _buildNvDiff(oldNv,proposed){
+  const changed={};
+  Object.keys(NV_FIELD_LABELS).forEach(f=>{
+    const a=(oldNv&&oldNv[f]!==undefined&&oldNv[f]!==null)?String(oldNv[f]):'';
+    const b=(proposed&&proposed[f]!==undefined&&proposed[f]!==null)?String(proposed[f]):'';
+    if(a!==b)changed[f]={old:oldNv?oldNv[f]:undefined,new:proposed?proposed[f]:undefined};
+  });
+  const rows=Object.keys(changed).map(f=>`<tr>
+    <td style="padding:3px 8px;font-size:12px;border:1px solid var(--border,#eee);">${NV_FIELD_LABELS[f]}</td>
+    <td style="padding:3px 8px;font-size:12px;border:1px solid var(--border,#eee);color:#b03030;text-decoration:line-through;">${_escH(_fmtNvVal(f,changed[f].old))}</td>
+    <td style="padding:3px 8px;font-size:12px;border:1px solid var(--border,#eee);color:#1a7a3c;font-weight:600;">${_escH(_fmtNvVal(f,changed[f].new))}</td>
+  </tr>`).join('');
+  const html=rows?`<table style="border-collapse:collapse;width:100%;margin-top:6px;"><thead><tr style="background:#f5f7fb;">
+    <th style="padding:3px 8px;font-size:11px;text-align:left;border:1px solid var(--border,#eee);">Trường</th>
+    <th style="padding:3px 8px;font-size:11px;text-align:left;border:1px solid var(--border,#eee);">Giá trị cũ</th>
+    <th style="padding:3px 8px;font-size:11px;text-align:left;border:1px solid var(--border,#eee);">Giá trị mới</th>
+  </tr></thead><tbody>${rows}</tbody></table>`:'<div style="font-size:12px;color:var(--text-light);">Không có thay đổi.</div>';
+  return{changed,html};
+}
+function _nvPendingChange(nvId){return BHLD.lsGet('pending_changes').find(c=>c.status==='pending'&&String(c.nvId)===String(nvId));}
+function _submitPendingChange(type,oldNv,proposed,diff){
+  const now=new Date().toISOString();
+  const donVi=(proposed&&proposed.boPhan)||(oldNv&&oldNv.boPhan)||'';
+  const nvId=oldNv?String(oldNv.id):'';
+  const nvTen=(proposed&&proposed.ten)||(oldNv&&oldNv.ten)||'';
+  const payload={type,nvId,oldNv:oldNv?{...oldNv}:null,proposed:proposed||null};
+  const rec={donVi,type,nvId,nvTen,payload:JSON.stringify(payload),diffHtml:diff?diff.html:'',status:'pending',submittedBy:_getCurrentUserLabel(),submittedByUsername:_getCurrentUsername(),submittedAt:now,createdAt:now};
+  _bhldPush('insert','pending_changes',null,rec);
+}
+function approveChange(id){
+  if(!isAdmin()){showToast('Chỉ Admin mới có quyền.','error');return;}
+  const c=BHLD.lsGet('pending_changes').find(x=>String(x.id)===String(id));if(!c)return;
+  if(!confirm(`Đồng ý áp dụng yêu cầu "${_changeTypeLabel(c.type)}" cho "${c.nvTen||''}"?`))return;
+  let payload;try{payload=JSON.parse(c.payload||'{}');}catch(e){payload={};}
+  const now=new Date().toISOString();const reviewer=_getCurrentUserLabel();
+  if(c.type==='add'){
+    const prop=payload.proposed||{};const {id:_x,...rest}=prop;
+    const newNV={id:nextId(daNhanVien),...rest};
+    daNhanVien.push(newNV);saveData('nhanvien',daNhanVien);BHLD.lsSet('nhanvien',daNhanVien);
+    _bhldPush('insert','nhanvien',null,newNV);
+  } else if(c.type==='edit'){
+    const idx=daNhanVien.findIndex(n=>String(n.id)===String(c.nvId));
+    if(idx>=0){daNhanVien[idx]={...daNhanVien[idx],...(payload.proposed||{})};saveData('nhanvien',daNhanVien);BHLD.lsSet('nhanvien',daNhanVien);_bhldPush('update','nhanvien',c.nvId,daNhanVien[idx]);}
+  } else if(c.type==='delete'){
+    daNhanVien=daNhanVien.filter(n=>String(n.id)!==String(c.nvId));saveData('nhanvien',daNhanVien);BHLD.lsSet('nhanvien',daNhanVien);_bhldPush('delete','nhanvien',c.nvId,null);
+  }
+  BHLD.push.update('pending_changes',id,{status:'approved',reviewedBy:reviewer,reviewedAt:now});
+  if(c.submittedByUsername)_pushNotif(c.submittedByUsername,'change_approve','✅ Thay đổi nhân sự được duyệt',`Yêu cầu ${_changeTypeLabel(c.type)} cho "${c.nvTen||''}" đã được ${reviewer} đồng ý và áp dụng.`,c.id);
+  showToast('✅ Đã áp dụng thay đổi.');
+  renderTableNV();_populateChucDanhSelect();renderChoduyetTab();
+}
+function rejectChange(id){
+  if(!isAdmin()){showToast('Chỉ Admin mới có quyền.','error');return;}
+  const c=BHLD.lsGet('pending_changes').find(x=>String(x.id)===String(id));if(!c)return;
+  if(!confirm('Từ chối yêu cầu này? Dữ liệu giữ nguyên như ban đầu.'))return;
+  const reason=(prompt('Nhập lý do từ chối (bắt buộc):','')||'').trim();
+  if(!reason){showToast('Bạn cần nhập lý do từ chối.','warning');return;}
+  const now=new Date().toISOString();const reviewer=_getCurrentUserLabel();
+  BHLD.push.update('pending_changes',id,{status:'rejected',reviewedBy:reviewer,reviewedAt:now,rejectReason:reason});
+  if(c.submittedByUsername)_pushNotif(c.submittedByUsername,'change_reject','❌ Thay đổi nhân sự bị từ chối',`Yêu cầu ${_changeTypeLabel(c.type)} cho "${c.nvTen||''}" đã bị ${reviewer} từ chối.\nLý do: ${reason}\nThông tin giữ nguyên như ban đầu.`,c.id);
+  showToast('Đã từ chối yêu cầu thay đổi.','warning');
   renderChoduyetTab();
 }
 
@@ -2505,7 +2791,8 @@ function renderBaoCao(){
   const tabChoduyet=document.getElementById('phieu-tab-choduyet');
   if(tabChoduyet)tabChoduyet.style.display=isAdmin()?'block':'none';
   // Cập nhật badges
-  const pendingCount=BHLD.lsGet('phieu_requests').filter(p=>p.status==='pending').length;
+  const pendingCount=BHLD.lsGet('phieu_requests').filter(p=>p.status==='pending').length
+    +BHLD.lsGet('pending_changes').filter(c=>c.status==='pending').length;
   const badgeChoduyet=document.getElementById('choduyet-badge');
   if(badgeChoduyet){badgeChoduyet.textContent=pendingCount;badgeChoduyet.style.display=(isAdmin()&&pendingCount)?'inline':'none';}
   const nvMoiCount=daNhanVien.filter(n=>n.loaiNV==='moi').length;
@@ -3081,6 +3368,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   // Bước 4: Hiển thị thông tin user trên header
   // (Không redirect — cho phép viewer và anonymous xem read-only, giống các trang khác trong app)
   renderHeaderUser();
+  _updateNotifBadge();
   // Ngày giờ header
   const dateEl=document.getElementById('header-date');
   if(dateEl){const now=new Date();dateEl.textContent=now.toLocaleDateString('vi-VN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});}
@@ -3111,6 +3399,8 @@ document.addEventListener('DOMContentLoaded',()=>{
         _populateChucDanhSelect();
         renderUnitPicker();
         if(_currentUnit){ renderTableNV(); renderNhomPanel(_currentUnit); }
+        _updateNotifBadge();
+        if(typeof renderChoduyetTab==='function'&&isAdmin())renderChoduyetTab();
       })
       .catch(function(){ /* silent fail — không hiện lỗi */ });
   }
