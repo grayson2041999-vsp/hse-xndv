@@ -21,7 +21,7 @@ var BHLD = (function() {
 
   // ── Danh sách sheet cần pull ──
   var PULL_SHEETS = [
-    'nhanvien', 'phieu_requests', 'pending_changes',
+    'nhanvien', 'phieu_requests', 'pending_changes', 'notifications',
     'danh_muc', 'dinh_muc', 'ton_kho', 'lich_su_nhap_xuat',
     'nhom_nv', 'quy_list', 'nhom_tb', 'chuc_danh'
   ];
@@ -31,6 +31,7 @@ var BHLD = (function() {
     'nhanvien':        'bhld_nhanvien',
     'phieu_requests':  'bhld_phieu_requests',
     'pending_changes': 'bhld_pending_changes',
+    'notifications':   'bhld_notifications',
     'danh_muc':        'bhld_danh_muc',
     'dinh_muc':        'bhld_dinh_muc',
     'ton_kho':         'bhld_ton_kho',
