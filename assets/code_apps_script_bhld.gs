@@ -48,7 +48,7 @@ var SCHEMA = {
       "id","type","donVi","quyStr","status",
       "nvId","nvTen","nvDanhSo","chucDanh","ngayVaoLam",
       "items",
-      "submittedBy","submittedAt","reviewedBy","reviewedAt",
+      "submittedBy","submittedByUsername","submittedAt","reviewedBy","reviewedAt",
       "rejectReason","createdAt","updatedAt"
     ],
     desc: "Phiếu yêu cầu cấp phát (type: quy | nv_moi) — pending/approved/rejected"
@@ -56,11 +56,19 @@ var SCHEMA = {
 
   pending_changes: {
     cols: [
-      "id","donVi","type","payload","diffHtml","status",
-      "submittedBy","submittedAt","reviewedBy","reviewedAt",
-      "rejectReason","createdAt"
+      "id","donVi","type","nvId","nvTen","payload","diffHtml","status",
+      "submittedBy","submittedByUsername","submittedAt","reviewedBy","reviewedAt",
+      "rejectReason","createdAt","updatedAt"
     ],
-    desc: "Thay đổi danh sách nhân viên chờ admin duyệt"
+    desc: "Thay đổi danh sách nhân viên chờ admin duyệt (type: add | edit | delete)"
+  },
+
+  notifications: {
+    cols: [
+      "id","toUsername","type","title","message","relatedId",
+      "snapshot","read","createdBy","createdAt"
+    ],
+    desc: "Thông báo gửi tới User (duyệt/từ chối NV mới, phiếu, thay đổi nhân sự...). read: '1'|'' "
   },
 
   danh_muc: {
