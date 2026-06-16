@@ -1379,8 +1379,29 @@ function renderBaoCao(){
   }
   canvas.style.display="block"; emptyDiv.style.display="none";
 
-  var COLORS=["#003087","#1a56a0","#2e7d32","#b45309","#6b21a8","#0e7490","#9f1239","#065f46","#92400e","#1e3a5f"];
-  var bgColors=labels.map(function(_,i){return COLORS[i%COLORS.length];});
+  // ── Concept A: gradient kép chia ở TRUNG VỊ ──
+  // Dưới trung vị  → màu XÁM,  nhạt → đậm (đậm dần theo số lượng)
+  // Từ trung vị ↑  → màu XANH nước biển, nhạt → đậm
+  var _sorted=values.slice().sort(function(a,b){return a-b;});
+  var _n=_sorted.length;
+  var median=_n?(_n%2?_sorted[(_n-1)/2]:(_sorted[_n/2-1]+_sorted[_n/2])/2):0;
+  function _lerp(c1,c2,t){
+    return "rgb("+Math.round(c1[0]+(c2[0]-c1[0])*t)+","+Math.round(c1[1]+(c2[1]-c1[1])*t)+","+Math.round(c1[2]+(c2[2]-c1[2])*t)+")";
+  }
+  var GRAY_LIGHT=[154,167,184], GRAY_DARK=[90,107,128];   // xám nhạt → xám đậm
+  var BLUE_LIGHT=[122,176,224], BLUE_DARK=[0,48,135];      // xanh nhạt → navy đậm (#003087)
+  var _below=values.filter(function(v){return v<median;});
+  var _above=values.filter(function(v){return v>=median;});
+  var bMin=_below.length?Math.min.apply(null,_below):0, bMax=_below.length?Math.max.apply(null,_below):1;
+  var aMin=_above.length?Math.min.apply(null,_above):0, aMax=_above.length?Math.max.apply(null,_above):1;
+  var bgColors=values.map(function(v){
+    if(v<median){
+      var t=bMax>bMin?(v-bMin)/(bMax-bMin):1;
+      return _lerp(GRAY_LIGHT,GRAY_DARK,t);
+    }
+    var t2=aMax>aMin?(v-aMin)/(aMax-aMin):1;
+    return _lerp(BLUE_LIGHT,BLUE_DARK,t2);
+  });
 
   if(window._bcChart) window._bcChart.destroy();
   window._bcChart=new Chart(canvas,{
@@ -1418,7 +1439,7 @@ function renderBaoCao(){
           grid:{color:"#f0f0f0"}
         },
         y:{
-          ticks:{font:{size:12},color:"#1e293b"}
+          ticks:{font:{size:12,weight:"600"},color:function(c){return bgColors[c.index]||"#1e293b";}}
         }
       }
     },
