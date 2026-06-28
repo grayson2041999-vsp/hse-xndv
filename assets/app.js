@@ -327,7 +327,7 @@
         ? '<span style="margin-left:auto;font-size:9.5px;opacity:.6;font-style:italic;">chỉ xem</span>'
         : '';
       var a = el("a", (item.slug===activeSlug?"active ":""));
-      a.innerHTML='<span class="ic">'+item.icon+'</span><span>'+esc(item.title)+'</span>'+badge+viewOnlyTag;
+      a.innerHTML='<span>'+esc(item.title.toUpperCase())+'</span>'+badge+viewOnlyTag;
       a.href=item.slug+".html";
       nav.appendChild(a);
     });

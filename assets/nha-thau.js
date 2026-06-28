@@ -179,14 +179,14 @@
     table.className = "nt-table";
     table.innerHTML =
       '<thead><tr>' +
-        '<th style="width:32px;">#</th>' +
-        '<th>Tên nhà thầu</th>' +
-        '<th>Khu vực thuê</th>' +
-        '<th>Hạng mục thuê</th>' +
-        '<th>Đầu mối liên hệ</th>' +
-        '<th style="width:130px;">Trạng thái HĐ</th>' +
-        '<th style="width:110px;">Thông tin HĐ</th>' +
-        (_canEdit ? '<th style="width:100px;">Thao tác</th>' : '') +
+        '<th style="width:30px;">#</th>' +
+        '<th style="width:200px;">Tên nhà thầu</th>' +
+        '<th style="width:110px;">Khu vực thuê</th>' +
+        '<th style="width:160px;">Hạng mục thuê</th>' +
+        '<th style="width:140px;">Đầu mối liên hệ</th>' +
+        '<th style="width:110px;">Trạng thái HĐ</th>' +
+        '<th style="width:115px;">Thông tin HĐ</th>' +
+        (_canEdit ? '<th style="width:72px;">Thao tác</th>' : '') +
       '</tr></thead>';
 
     var tbody = document.createElement("tbody");
@@ -433,10 +433,10 @@
       ".nt-btn-del:hover{background:#fdedec;}",
 
       /* Table */
-      ".nt-table-wrap{overflow-x:auto;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.07);}",
-      ".nt-table{width:100%;border-collapse:collapse;font-size:13.5px;background:#fff;}",
-      ".nt-table th{background:#dde6f3;color:#003087;font-weight:700;padding:10px 12px;text-align:left;white-space:nowrap;}",
-      ".nt-table td{padding:10px 12px;border-bottom:1px solid #eef1f7;vertical-align:top;}",
+      ".nt-table-wrap{overflow-x:hidden;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.07);}",
+      ".nt-table{width:100%;table-layout:fixed;border-collapse:collapse;font-size:12.5px;background:#fff;}",
+      ".nt-table th{background:#dde6f3;color:#003087;font-weight:700;padding:8px 10px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}",
+      ".nt-table td{padding:8px 10px;border-bottom:1px solid #eef1f7;vertical-align:top;overflow:hidden;white-space:normal;word-break:break-word;overflow-wrap:anywhere;}",
       ".nt-table tbody tr:hover td{background:#f4f8fd;}",
 
       /* Badge */

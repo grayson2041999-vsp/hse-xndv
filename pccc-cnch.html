@@ -26,7 +26,7 @@
     /* LAYOUT */
     .layout{display:flex;min-height:100vh;}
     .sidebar{width:230px;background:var(--primary);position:fixed;top:0;left:0;bottom:0;z-index:90;display:flex;flex-direction:column;overflow-y:auto;}
-    .nav-item{display:flex;align-items:center;gap:10px;padding:10px 18px;color:rgba(255,255,255,0.72);font-size:13px;border-left:3px solid transparent;transition:all .15s;text-decoration:none;}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:10px 18px;color:rgba(255,255,255,0.72);font-size:11px;letter-spacing:.5px;font-weight:600;border-left:3px solid transparent;transition:all .15s;text-decoration:none;}
     .nav-item:hover{background:rgba(255,255,255,0.08);color:#fff;}
     .nav-item.active{background:rgba(0,32,101,0.45);border-left-color:var(--accent);color:#fff;font-weight:600;}
     .main{margin-left:230px;padding:76px 28px 40px;}
@@ -617,7 +617,7 @@ function buildSidebar(){
   MENU.forEach(function(m){
     if(m.adminOnly&&(!u||u.role!=="admin"))return;
     var active=m.slug==="pccc-cnch"?" active":"";
-    html+='<a class="nav-item'+active+'" href="'+m.slug+'.html">'+m.icon+' '+m.title+'</a>';
+    html+='<a class="nav-item'+active+'" href="'+m.slug+'.html">'+m.title.toUpperCase()+'</a>';
   });
   html+='</nav>';
   document.getElementById("sidebar").innerHTML=html;

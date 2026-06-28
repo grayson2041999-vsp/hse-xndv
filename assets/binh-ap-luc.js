@@ -598,19 +598,24 @@
       ".bal-section-count{font-size:12px;color:#6b7c93;background:#fff;border-radius:12px;padding:2px 10px;}",
 
       /* Table */
-      ".bal-table-wrap{overflow-x:auto;}",
-      ".bal-table{width:100%;border-collapse:collapse;font-size:13px;}",
-      ".bal-table th{background:#dde6f3;color:#003087;font-weight:600;padding:9px 10px;text-align:left;white-space:nowrap;border-bottom:2px solid #cdd6e8;}",
-      ".bal-table td{padding:8px 10px;border-bottom:1px solid #eef0f4;vertical-align:middle;}",
+      ".bal-table-wrap{overflow-x:hidden;}",
+      ".bal-table{width:100%;table-layout:fixed;border-collapse:collapse;font-size:13px;}",
+      ".bal-table th{background:#dde6f3;color:#003087;font-weight:600;padding:9px 10px;text-align:left;white-space:nowrap;border-bottom:2px solid #cdd6e8;overflow:hidden;}",
+      ".bal-table td{padding:8px 10px;border-bottom:1px solid #eef0f4;vertical-align:middle;overflow:hidden;word-break:break-word;overflow-wrap:anywhere;}",
       ".bal-table tbody tr:hover td{background:#eef3fb;}",
       ".bal-empty{text-align:center;color:#6b7c93;padding:24px!important;font-style:italic;}",
 
       /* Col widths */
-      ".col-no{width:40px;text-align:center;color:#6b7c93;}",
-      ".col-drag{width:28px;text-align:center;cursor:grab;color:#aaa;font-size:16px;user-select:none;}",
-      ".col-thongso{white-space:nowrap;}",
-      ".col-kd{white-space:nowrap;}",
-      ".col-action{white-space:nowrap;text-align:right;}",
+      ".col-no{width:36px;text-align:center;color:#6b7c93;}",
+      ".col-drag{width:26px;text-align:center;cursor:grab;color:#aaa;font-size:16px;user-select:none;}",
+      ".col-ten{width:160px;}",
+      ".col-vitri{width:130px;}",
+      ".col-thongso{width:130px;}",
+      ".col-nam{width:80px;}",
+      ".col-sodangky{width:90px;}",
+      ".col-kd{width:100px;}",
+      ".col-ghichu{width:120px;}",
+      ".col-action{width:60px;text-align:right;}",
 
       /* Drag */
       ".bal-row-draggable{cursor:default;}",

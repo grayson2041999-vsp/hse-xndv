@@ -28,7 +28,7 @@
     .layout{display:flex;min-height:100vh;}
     .sidebar{width:230px;background:var(--primary);position:fixed;top:0;left:0;bottom:0;z-index:90;display:flex;flex-direction:column;overflow-y:auto;}
     .nav{flex:1;}
-    .nav-item{display:flex;align-items:center;gap:10px;padding:10px 18px;color:rgba(255,255,255,0.72);cursor:pointer;font-size:13px;border-left:3px solid transparent;transition:all 0.15s;text-decoration:none;}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:10px 18px;color:rgba(255,255,255,0.72);cursor:pointer;font-size:11px;letter-spacing:.5px;font-weight:600;border-left:3px solid transparent;transition:all 0.15s;text-decoration:none;}
     .nav-item:hover{background:rgba(255,255,255,0.08);color:#fff;}
     .nav-item.active{background:rgba(0,32,101,0.45);border-left-color:var(--accent);color:#fff;font-weight:600;}
     .main{margin-left:230px;padding:76px 28px 32px;min-height:100vh;}
@@ -387,7 +387,7 @@ function buildSidebar(){
   MENU.forEach(function(m){
     if(m.adminOnly&&(!u||u.role!=="admin"))return;
     var active=m.slug==="ke-hoach"?" active":"";
-    html+='<a class="nav-item'+active+'" href="'+m.slug+'.html">'+m.icon+' '+m.title+'</a>';
+    html+='<a class="nav-item'+active+'" href="'+m.slug+'.html">'+m.title.toUpperCase()+'</a>';
   });
   html+='</nav>';
   aside.innerHTML=html;
@@ -510,7 +510,7 @@ function _buildFilterOptions(items, ctId, pgId){
   selPG.innerHTML='<option value="">Tất cả trang liên quan</option>'+
     allSlugs.map(function(s){
       var m=MENU.find(function(mm){return mm.slug===s;});
-      return m?'<option value="'+s+'"'+(s===curPG?' selected':'')+'>'+m.icon+' '+m.title+'</option>':'';
+      return m?'<option value="'+s+'"'+(s===curPG?' selected':'')+'>'+m.title.toUpperCase()+'</option>':'';
     }).join("");
 }
 function populateFilters(){ _buildFilterOptions(getOnce(),"filterChuTri","filterPage"); }
@@ -576,7 +576,7 @@ function renderTable(type){
           var stBadge='<span class="st-badge '+STATUS_BADGE_CLS[st]+'">'+st+'</span>';
           var pages=(x.pages||[]).map(function(s){
             var m=MENU.find(function(mm){return mm.slug===s;});
-            return m?'<span class="badge badge-blue" style="margin:1px;font-size:10.5px">'+m.icon+' '+m.title+'</span>':'';
+            return m?'<span class="badge badge-blue" style="margin:1px;font-size:10.5px">'+m.title.toUpperCase()+'</span>':'';
           }).join("");
           var ph=Array.isArray(x.phoiHop)&&x.phoiHop.length
             ?x.phoiHop.map(function(p){return'<span class="badge badge-gray" style="margin:1px;font-size:11px">'+esc(p)+'</span>';}).join(" ")
@@ -661,7 +661,7 @@ function renderTable(type){
     tb.innerHTML=items.map(function(x,i){
       var pages=(x.pages||[]).map(function(s){
         var m=MENU.find(function(mm){return mm.slug===s;});
-        return m?'<span class="badge badge-blue" style="margin:1px;font-size:11px">'+m.icon+' '+m.title+'</span>':'';
+        return m?'<span class="badge badge-blue" style="margin:1px;font-size:11px">'+m.title.toUpperCase()+'</span>':'';
       }).join("");
       var months=x.allMonths
         ?'<span class="badge badge-green">📅 Hàng tháng</span>'
@@ -1017,7 +1017,7 @@ function buildForm(type, data){
         var chk=pagesChecked.indexOf(m.slug)>=0?" checked":"";
         return '<label class="page-check">'+
           '<input type="checkbox" name="pages" value="'+m.slug+'"'+chk+'>'+
-          '<span>'+m.icon+' '+m.title+'</span>'+
+          '<span>'+m.title.toUpperCase()+'</span>'+
           '</label>';
       }).join("")+
     '</div>';
